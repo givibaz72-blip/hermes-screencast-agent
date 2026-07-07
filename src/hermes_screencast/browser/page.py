@@ -4,10 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .session import BrowserSession
-from hermes_screencast.detectors import (
-    detect_auth_state,
-    detect_challenge_state,
-)
+from hermes_screencast.auth import AuthState
+from hermes_screencast.detectors import AuthDetector, ChallengeDetector
 
 
 class PageState(str, Enum):
@@ -34,19 +32,21 @@ class BrowserPage:
     def state(self) -> PageState:
         html = self.html()
 
-        challenge = detect_challenge_state(html)
-        if challenge == "captcha_required":
+        challenge_state = ChallengeDetector().detect_from_text(html)
+
+        if challenge_state == AuthState.CAPTCHA_REQUIRED:
             return PageState.CAPTCHA_REQUIRED
 
-        if challenge == "two_factor_required":
+        if challenge_state == AuthState.TWO_FACTOR_REQUIRED:
             return PageState.TWO_FACTOR_REQUIRED
 
-        auth = detect_auth_state(html)
-        if auth == "authenticated":
-            return PageState.AUTHENTICATED
+        auth_state = AuthDetector().detect_from_text(html)
 
-        if auth == "login_required":
+        if auth_state == AuthState.LOGIN_REQUIRED:
             return PageState.LOGIN_REQUIRED
+
+        if auth_state == AuthState.AUTHENTICATED:
+            return PageState.AUTHENTICATED
 
         return PageState.UNKNOWN
 
