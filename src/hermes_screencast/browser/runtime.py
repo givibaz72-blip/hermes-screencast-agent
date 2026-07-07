@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 
 from .factory import BrowserConfig
+from .page import BrowserPage
 from .session import BrowserSession
 
 
@@ -17,6 +20,7 @@ class BrowserRuntimeConfig:
 class BrowserRuntime:
     def __init__(self, config: BrowserRuntimeConfig | None = None):
         self.config = config or BrowserRuntimeConfig()
+
         browser_config = BrowserConfig(
             profile=self.config.profile,
             headless=self.config.headless,
@@ -24,6 +28,7 @@ class BrowserRuntime:
             viewport_height=self.config.viewport_height,
             locale=self.config.locale,
         )
+
         self.session = BrowserSession(profile=browser_config.profile)
 
     def __enter__(self) -> "BrowserRuntime":
@@ -34,8 +39,8 @@ class BrowserRuntime:
         self.close()
 
     @property
-    def page(self):
-        return self.session.require_page()
+    def page(self) -> BrowserPage:
+        return BrowserPage(self.session)
 
     @property
     def context(self):
@@ -52,7 +57,12 @@ class BrowserRuntime:
     def new_page(self):
         return self.session.new_page()
 
-    def goto(self, url: str, wait_until: str = "domcontentloaded", timeout: int = 30000) -> None:
+    def goto(
+        self,
+        url: str,
+        wait_until: str = "domcontentloaded",
+        timeout: int = 30000,
+    ) -> None:
         self.session.goto(url, wait_until=wait_until, timeout=timeout)
 
     def wait(self, seconds: float) -> None:
