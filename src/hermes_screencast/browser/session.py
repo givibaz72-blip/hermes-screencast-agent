@@ -72,6 +72,16 @@ class BrowserSession:
     @property
     def mouse(self):
         return self.require_page().mouse
+    @property
+    def context(self):
+        if self._context is None:
+            raise RuntimeError("BrowserSession is not started")
+        return self._context
+    def new_page(self):
+        return self.context.new_page()
+    @property
+    def pages(self):
+        return self.context.pages
     def evaluate(self, script: str):
         return self.require_page().evaluate(script)
     def add_init_script(self, script: str) -> None:
