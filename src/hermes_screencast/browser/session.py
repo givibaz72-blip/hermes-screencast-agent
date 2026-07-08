@@ -61,6 +61,17 @@ class BrowserSession:
 
     def content(self) -> str:
         return self.require_page().content()
+    def fill(self, selector: str, text: str, timeout: int = 5000) -> None:
+        self.require_page().fill(
+            selector,
+            text,
+            timeout=timeout,
+        )
+    def locator(self, selector: str):
+        return self.require_page().locator(selector)
+    @property
+    def mouse(self):
+        return self.require_page().mouse
     def evaluate(self, script: str):
         return self.require_page().evaluate(script)
     def add_init_script(self, script: str) -> None:
