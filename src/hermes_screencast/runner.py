@@ -1,9 +1,11 @@
+import argparse
 import json
 import subprocess
 import sys
 from pathlib import Path
 
 from .config import OUTPUT_DIR, PYTHON, RECORDER
+from .planner import make_basic_task
 from .verifier import verify_mp4
 
 VALID_MODES = {"public", "authenticated", "assisted_login"}
@@ -12,12 +14,8 @@ def run(cmd: list[str]) -> None:
     print("→", " ".join(cmd), flush=True)
     subprocess.run(cmd, check=True)
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: hermes-screencast task.json")
-        raise SystemExit(1)
-
-    task_path = Path(sys.argv[1]).expanduser().resolve()
+def record_task(task_path: Path) -> Path:
+    task_path = task_path.expanduser().resolve()
     if not task_path.exists():
         raise FileNotFoundError(task_path)
 
@@ -49,6 +47,81 @@ def main() -> None:
 
     verify_mp4(final)
     print(f"✅ Final screencast: {final}", flush=True)
+    return final
+
+def write_planned_task(args: argparse.Namespace) -> Path:
+    task = make_basic_task(
+        url=args.url,
+        title=args.title,
+        mode=args.mode,
+        wait_before=args.wait_before,
+        wait_after=args.wait_after,
+        hover_selector=args.hover,
+        click_selector=args.click,
+        sync_offset=args.sync_offset,
+    )
+
+    output = Path(args.output).expanduser().resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"✅ Task written: {output}", flush=True)
+    return output
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="hermes-screencast")
+    sub = parser.add_subparsers(dest="command")
+
+    record = sub.add_parser("record", help="Record from an existing task JSON")
+    record.add_argument("task_json")
+
+    plan = sub.add_parser("plan", help="Create a basic task JSON")
+    plan.add_argument("--url", required=True)
+    plan.add_argument("--title")
+    plan.add_argument("--mode", default="public", choices=sorted(VALID_MODES))
+    plan.add_argument("--hover")
+    plan.add_argument("--click")
+    plan.add_argument("--wait-before", type=int, default=2)
+    plan.add_argument("--wait-after", type=int, default=1)
+    plan.add_argument("--sync-offset", type=float, default=0.3)
+    plan.add_argument("--output", required=True)
+
+    run_cmd = sub.add_parser("run", help="Create a basic task JSON and record it")
+    run_cmd.add_argument("--url", required=True)
+    run_cmd.add_argument("--title")
+    run_cmd.add_argument("--mode", default="public", choices=sorted(VALID_MODES))
+    run_cmd.add_argument("--hover")
+    run_cmd.add_argument("--click")
+    run_cmd.add_argument("--wait-before", type=int, default=2)
+    run_cmd.add_argument("--wait-after", type=int, default=1)
+    run_cmd.add_argument("--sync-offset", type=float, default=0.3)
+    run_cmd.add_argument("--output", default="/tmp/hermes_screencast_task.json")
+
+    parser.add_argument("legacy_task_json", nargs="?")
+    return parser
+
+def main() -> None:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.command == "record":
+        record_task(Path(args.task_json))
+        return
+
+    if args.command == "plan":
+        write_planned_task(args)
+        return
+
+    if args.command == "run":
+        task_path = write_planned_task(args)
+        record_task(task_path)
+        return
+
+    if args.legacy_task_json:
+        record_task(Path(args.legacy_task_json))
+        return
+
+    parser.print_help()
+    raise SystemExit(1)
 
 if __name__ == "__main__":
     main()
