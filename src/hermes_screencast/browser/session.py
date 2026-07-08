@@ -38,8 +38,17 @@ class BrowserSession:
             raise RuntimeError("BrowserSession is not started")
         return self.page
 
-    def goto(self, url: str):
-        self.require_page().goto(url)
+    def goto(
+        self,
+        url: str,
+        wait_until: str = "domcontentloaded",
+        timeout: int = 30000,
+    ) -> None:
+        self.require_page().goto(
+            url,
+            wait_until=wait_until,
+            timeout=timeout,
+        )
 
     def wait(self, seconds: float):
         time.sleep(seconds)
@@ -52,6 +61,10 @@ class BrowserSession:
 
     def content(self) -> str:
         return self.require_page().content()
+    def evaluate(self, script: str):
+        return self.require_page().evaluate(script)
+    def add_init_script(self, script: str) -> None:
+        self.require_page().add_init_script(script)
 
     def close(self):
         if self._context:
