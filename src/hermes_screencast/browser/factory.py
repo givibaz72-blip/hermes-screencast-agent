@@ -30,4 +30,11 @@ class BrowserFactory:
                 "height": self.config.viewport_height,
             },
             locale=self.config.locale,
+            args=[
+                "--display=:99",
+                "--no-sandbox",
+                f"--window-size={self.config.viewport_width},{self.config.viewport_height}",
+                "--start-maximized",
+                "--disable-infobars",
+            ],
         )
