@@ -1,0 +1,11 @@
+{
+  "title": "example_demo",
+  "url": "https://example.com",
+  "mode": "public",
+  "steps": [
+    {"action": "wait", "seconds": 2},
+    {"action": "hover", "selector": "a", "pause": 1},
+    {"action": "wait", "seconds": 1}
+  ],
+  "sync_offset": 0.3
+}

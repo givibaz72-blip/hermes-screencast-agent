@@ -1,0 +1,13 @@
+[project]
+name = "hermes-screencast-agent"
+version = "0.1.0"
+description = "AI-assisted browser screencast agent for Hermes"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+hermes-screencast = "hermes_screencast.runner:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
