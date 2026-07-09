@@ -8,8 +8,8 @@ from .factory import BrowserConfig, BrowserFactory
 
 
 class BrowserSession:
-    def __init__(self, profile: str = "legacy"):
-        self.config = BrowserConfig(profile=profile)
+    def __init__(self, profile: str = "legacy", config: BrowserConfig | None = None):
+        self.config = config or BrowserConfig(profile=profile)
         self._playwright: Playwright | None = None
         self._context: BrowserContext | None = None
         self.page: Page | None = None

@@ -29,7 +29,7 @@ class BrowserRuntime:
             locale=self.config.locale,
         )
 
-        self.session = BrowserSession(profile=browser_config.profile)
+        self.session = BrowserSession(config=browser_config)
 
     def __enter__(self) -> "BrowserRuntime":
         self.session.__enter__()
