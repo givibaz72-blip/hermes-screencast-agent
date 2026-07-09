@@ -71,6 +71,18 @@ class DemoScript:
             if step.seconds is None or step.seconds < 0:
                 raise ValueError(f"Step {index}: wait requires non-negative seconds")
 
+        if step.action == DemoActionType.SCROLL:
+            if step.value is None:
+                raise ValueError(f"Step {index}: scroll requires value")
+
+            try:
+                int(step.value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"Step {index}: scroll value must be an integer") from exc
+
+        if step.action == DemoActionType.NARRATION and step.text is None:
+            raise ValueError(f"Step {index}: narration requires text")
+
 
 @dataclass(frozen=True)
 class DemoRunResult:
