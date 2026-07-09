@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import NoReturn
 
 from hermes_screencast.demo.executor import DemoExecutor
 from hermes_screencast.demo.script import DemoActionType, DemoRunResult, DemoScript, DemoStep
@@ -11,10 +12,11 @@ class DemoRunner:
     executor: DemoExecutor
 
     def run(self, script: DemoScript) -> DemoRunResult:
+        completed_steps = 0
+
         try:
             script.validate()
 
-            completed_steps = 0
             for step in script.steps:
                 self._run_step(step)
                 completed_steps += 1
@@ -24,60 +26,85 @@ class DemoRunner:
         except Exception as exc:
             return DemoRunResult(
                 success=False,
-                completed_steps=completed_steps if "completed_steps" in locals() else 0,
+                completed_steps=completed_steps,
                 error=str(exc),
             )
 
     def _run_step(self, step: DemoStep) -> None:
-        handlers = {
-            DemoActionType.GOTO: self._goto,
-            DemoActionType.CLICK: self._click,
-            DemoActionType.HOVER: self._hover,
-            DemoActionType.FILL: self._fill,
-            DemoActionType.SCROLL: self._scroll,
-            DemoActionType.WAIT: self._wait,
-            DemoActionType.ZOOM: self._zoom,
-            DemoActionType.HIGHLIGHT: self._highlight,
-            DemoActionType.DRAW_BOX: self._draw_box,
-            DemoActionType.DRAW_ARROW: self._draw_arrow,
-            DemoActionType.NARRATION: self._narration,
-            DemoActionType.AUTH_CHECK: self._auth_check,
-        }
-
-        handlers[step.action](step)
+        if step.action == DemoActionType.GOTO:
+            self._goto(step)
+        elif step.action == DemoActionType.CLICK:
+            self._click(step)
+        elif step.action == DemoActionType.HOVER:
+            self._hover(step)
+        elif step.action == DemoActionType.FILL:
+            self._fill(step)
+        elif step.action == DemoActionType.SCROLL:
+            self._scroll(step)
+        elif step.action == DemoActionType.WAIT:
+            self._wait(step)
+        elif step.action == DemoActionType.ZOOM:
+            self._zoom(step)
+        elif step.action == DemoActionType.HIGHLIGHT:
+            self._highlight(step)
+        elif step.action == DemoActionType.DRAW_BOX:
+            self._draw_box(step)
+        elif step.action == DemoActionType.DRAW_ARROW:
+            self._draw_arrow(step)
+        elif step.action == DemoActionType.NARRATION:
+            self._narration(step)
+        elif step.action == DemoActionType.AUTH_CHECK:
+            self._auth_check()
+        else:
+            self._unsupported_action(step)
 
     def _goto(self, step: DemoStep) -> None:
-        self.executor.goto(step.url or "")
+        assert step.url is not None
+        self.executor.goto(step.url)
 
     def _click(self, step: DemoStep) -> None:
-        self.executor.click(step.selector or "")
+        assert step.selector is not None
+        self.executor.click(step.selector)
 
     def _hover(self, step: DemoStep) -> None:
-        self.executor.hover(step.selector or "")
+        assert step.selector is not None
+        self.executor.hover(step.selector)
 
     def _fill(self, step: DemoStep) -> None:
-        self.executor.fill(step.selector or "", step.text or "")
+        assert step.selector is not None
+        assert step.text is not None
+        self.executor.fill(step.selector, step.text)
 
     def _scroll(self, step: DemoStep) -> None:
-        self.executor.scroll(int(step.value or 0))
+        assert step.value is not None
+        self.executor.scroll(int(step.value))
 
     def _wait(self, step: DemoStep) -> None:
-        self.executor.wait(step.seconds or 0)
+        assert step.seconds is not None
+        self.executor.wait(step.seconds)
 
     def _zoom(self, step: DemoStep) -> None:
-        self.executor.zoom(step.selector or "")
+        assert step.selector is not None
+        self.executor.zoom(step.selector)
 
     def _highlight(self, step: DemoStep) -> None:
-        self.executor.highlight(step.selector or "")
+        assert step.selector is not None
+        self.executor.highlight(step.selector)
 
     def _draw_box(self, step: DemoStep) -> None:
-        self.executor.draw_box(step.selector or "")
+        assert step.selector is not None
+        self.executor.draw_box(step.selector)
 
     def _draw_arrow(self, step: DemoStep) -> None:
-        self.executor.draw_arrow(step.selector or "")
+        assert step.selector is not None
+        self.executor.draw_arrow(step.selector)
 
     def _narration(self, step: DemoStep) -> None:
-        self.executor.narration(step.text or "")
+        assert step.text is not None
+        self.executor.narration(step.text)
 
-    def _auth_check(self, step: DemoStep) -> None:
+    def _auth_check(self) -> None:
         self.executor.auth_check()
+
+    def _unsupported_action(self, step: DemoStep) -> NoReturn:
+        raise ValueError(f"Unsupported demo action: {step.action}")
