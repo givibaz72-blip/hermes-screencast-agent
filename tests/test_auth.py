@@ -1,6 +1,10 @@
 import pytest
 
-from hermes_screencast.auth import AuthMode, AuthState, CredentialSpec
+from hermes_screencast.auth import (
+    AuthMode,
+    AuthState,
+    CredentialSpec,
+)
 
 
 def test_auth_modes_exist():
