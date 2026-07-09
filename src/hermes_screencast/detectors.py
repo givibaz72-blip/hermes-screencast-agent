@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .auth import AuthState
+from hermes_screencast.auth import AuthState
 
 
 CAPTCHA_KEYWORDS = (
