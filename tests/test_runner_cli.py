@@ -42,3 +42,14 @@ def test_demo_run_parser():
     assert args.demo_json == "/tmp/demo.json"
     assert args.headless is True
     assert args.profile == "json-demo"
+
+
+def test_demo_init_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-init",
+        "/tmp/demo.json",
+    ])
+
+    assert args.command == "demo-init"
+    assert args.output == "/tmp/demo.json"
