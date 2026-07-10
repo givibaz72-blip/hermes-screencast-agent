@@ -180,3 +180,17 @@ class BrowserDemoExecutor:
 
         if callable(is_authenticated) and not is_authenticated():
             raise RuntimeError("Browser page is not authenticated")
+
+    def assert_text_visible(self, text: str) -> None:
+        result = self.runtime.evaluate(
+            f"""
+            (() => {{
+                const expectedText = {text!r};
+                const bodyText = document.body ? document.body.innerText : "";
+                return bodyText.includes(expectedText);
+            }})();
+            """
+        )
+
+        if not result:
+            raise AssertionError(f"Text not visible: {text}")

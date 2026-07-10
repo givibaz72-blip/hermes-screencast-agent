@@ -19,6 +19,7 @@ class FakePage:
 @dataclass
 class FakeBrowserRuntime:
     page: FakePage | None = None
+    evaluate_result: Any = True
     calls: list[tuple[str, tuple[Any, ...]]] = field(default_factory=list)
 
     def goto(self, url: str) -> None:
@@ -36,8 +37,9 @@ class FakeBrowserRuntime:
     def wait(self, seconds: float) -> None:
         self.calls.append(("wait", (seconds,)))
 
-    def evaluate(self, script: str) -> None:
+    def evaluate(self, script: str) -> Any:
         self.calls.append(("evaluate", (script,)))
+        return self.evaluate_result
 
 
 def test_browser_demo_executor_delegates_basic_browser_actions() -> None:
@@ -125,3 +127,25 @@ def test_browser_demo_executor_auth_check_fails_when_not_authenticated() -> None
 
     with pytest.raises(RuntimeError, match="Browser page is not authenticated"):
         executor.auth_check()
+
+
+def test_browser_demo_executor_assert_text_visible_passes_when_text_exists() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.assert_text_visible("Welcome")
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "bodyText.includes(expectedText)" in args[0]
+    assert "Welcome" in args[0]
+
+
+def test_browser_demo_executor_assert_text_visible_fails_when_text_is_missing() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(AssertionError, match="Text not visible: Missing text"):
+        executor.assert_text_visible("Missing text")
