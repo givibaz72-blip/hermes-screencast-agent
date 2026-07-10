@@ -146,6 +146,7 @@ narration
 auth_check
 assert_text_visible
 assert_element_visible
+assert_url_contains
 ```
 
 ## Legacy screencast commands

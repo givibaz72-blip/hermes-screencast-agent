@@ -219,3 +219,16 @@ class BrowserDemoExecutor:
 
         if not result:
             raise AssertionError(f"Element not visible: {selector}")
+
+    def assert_url_contains(self, url_part: str) -> None:
+        result = self.runtime.evaluate(
+            f"""
+            (() => {{
+                const expectedUrlPart = {url_part!r};
+                return window.location.href.includes(expectedUrlPart);
+            }})();
+            """
+        )
+
+        if not result:
+            raise AssertionError(f"URL does not contain: {url_part}")

@@ -125,3 +125,13 @@ def test_assert_element_visible_requires_selector():
 
     with pytest.raises(ValueError, match="assert_element_visible requires selector"):
         script.validate()
+
+
+def test_assert_url_contains_requires_url():
+    script = DemoScript(
+        title="Broken script",
+        steps=[DemoStep(action=DemoActionType.ASSERT_URL_CONTAINS)],
+    )
+
+    with pytest.raises(ValueError, match="assert_url_contains requires url"):
+        script.validate()

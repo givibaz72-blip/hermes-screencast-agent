@@ -129,3 +129,17 @@ def test_demo_dry_run_planner_summarizes_assert_element_visible() -> None:
 
     assert plan.steps[0].summary == "Assert element visible: #hero"
     assert plan.steps[0].details == {"selector": "#hero"}
+
+
+def test_demo_dry_run_planner_summarizes_assert_url_contains() -> None:
+    script = DemoScript(
+        title="URL assertion plan",
+        steps=[
+            DemoStep(action=DemoActionType.ASSERT_URL_CONTAINS, url="/dashboard"),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Assert URL contains: /dashboard"
+    assert plan.steps[0].details == {"url": "/dashboard"}
