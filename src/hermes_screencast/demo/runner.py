@@ -59,6 +59,8 @@ class DemoRunner:
             self._assert_text_visible(step)
         elif step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
             self._assert_element_visible(step)
+        elif step.action == DemoActionType.ASSERT_URL_CONTAINS:
+            self._assert_url_contains(step)
         else:
             self._unsupported_action(step)
 
@@ -117,6 +119,10 @@ class DemoRunner:
     def _assert_element_visible(self, step: DemoStep) -> None:
         assert step.selector is not None
         self.executor.assert_element_visible(step.selector)
+
+    def _assert_url_contains(self, step: DemoStep) -> None:
+        assert step.url is not None
+        self.executor.assert_url_contains(step.url)
 
     def _unsupported_action(self, step: DemoStep) -> NoReturn:
         raise ValueError(f"Unsupported demo action: {step.action}")

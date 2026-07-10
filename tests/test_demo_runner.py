@@ -52,6 +52,9 @@ class RecordingDemoExecutor:
     def assert_element_visible(self, selector: str) -> None:
         self.calls.append(("assert_element_visible", (selector,)))
 
+    def assert_url_contains(self, url_part: str) -> None:
+        self.calls.append(("assert_url_contains", (url_part,)))
+
 
 def test_demo_runner_executes_steps_in_order() -> None:
     executor = RecordingDemoExecutor()
@@ -144,4 +147,24 @@ def test_demo_runner_executes_assert_element_visible() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("assert_element_visible", ("#hero",)),
+    ]
+
+
+def test_demo_runner_executes_assert_url_contains() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="URL assertion runner test",
+        steps=[
+            DemoStep(action=DemoActionType.ASSERT_URL_CONTAINS, url="/dashboard"),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("assert_url_contains", ("/dashboard",)),
     ]

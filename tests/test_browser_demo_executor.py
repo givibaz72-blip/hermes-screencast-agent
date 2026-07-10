@@ -171,3 +171,25 @@ def test_browser_demo_executor_assert_element_visible_fails_when_element_is_miss
 
     with pytest.raises(AssertionError, match="Element not visible: #missing"):
         executor.assert_element_visible("#missing")
+
+
+def test_browser_demo_executor_assert_url_contains_passes_when_url_matches() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.assert_url_contains("/dashboard")
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "window.location.href.includes(expectedUrlPart)" in args[0]
+    assert "/dashboard" in args[0]
+
+
+def test_browser_demo_executor_assert_url_contains_fails_when_url_does_not_match() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(AssertionError, match="URL does not contain: /settings"):
+        executor.assert_url_contains("/settings")

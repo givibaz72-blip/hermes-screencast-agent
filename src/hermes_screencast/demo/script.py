@@ -22,6 +22,7 @@ class DemoActionType(str, Enum):
     AUTH_CHECK = "auth_check"
     ASSERT_TEXT_VISIBLE = "assert_text_visible"
     ASSERT_ELEMENT_VISIBLE = "assert_element_visible"
+    ASSERT_URL_CONTAINS = "assert_url_contains"
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,9 @@ class DemoScript:
 
         if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE and not step.selector:
             raise ValueError(f"Step {index}: assert_element_visible requires selector")
+
+        if step.action == DemoActionType.ASSERT_URL_CONTAINS and not step.url:
+            raise ValueError(f"Step {index}: assert_url_contains requires url")
 
 
 @dataclass(frozen=True)

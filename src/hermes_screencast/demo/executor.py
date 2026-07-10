@@ -47,3 +47,6 @@ class DemoExecutor(Protocol):
 
     def assert_element_visible(self, selector: str) -> None:
         ...
+
+    def assert_url_contains(self, url_part: str) -> None:
+        ...

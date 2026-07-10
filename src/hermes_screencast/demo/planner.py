@@ -126,6 +126,9 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
             return f"Assert element visible: {step.selector}"
 
+        if step.action == DemoActionType.ASSERT_URL_CONTAINS:
+            return f"Assert URL contains: {step.url}"
+
         raise ValueError(f"Unsupported demo action: {step.action}")
 
     def _details_for_step(self, step: DemoStep) -> dict[str, Any]:
