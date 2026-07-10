@@ -123,6 +123,9 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.ASSERT_TEXT_VISIBLE:
             return f"Assert text visible: {step.text}"
 
+        if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
+            return f"Assert element visible: {step.selector}"
+
         raise ValueError(f"Unsupported demo action: {step.action}")
 
     def _details_for_step(self, step: DemoStep) -> dict[str, Any]:

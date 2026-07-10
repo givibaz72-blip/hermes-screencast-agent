@@ -194,3 +194,28 @@ class BrowserDemoExecutor:
 
         if not result:
             raise AssertionError(f"Text not visible: {text}")
+
+    def assert_element_visible(self, selector: str) -> None:
+        result = self.runtime.evaluate(
+            f"""
+            (() => {{
+                const element = document.querySelector({selector!r});
+                if (!element) {{
+                    return false;
+                }}
+
+                const rect = element.getBoundingClientRect();
+                const style = window.getComputedStyle(element);
+
+                return (
+                    rect.width > 0 &&
+                    rect.height > 0 &&
+                    style.visibility !== "hidden" &&
+                    style.display !== "none"
+                );
+            }})();
+            """
+        )
+
+        if not result:
+            raise AssertionError(f"Element not visible: {selector}")

@@ -115,3 +115,17 @@ def test_demo_dry_run_planner_summarizes_assert_text_visible() -> None:
 
     assert plan.steps[0].summary == "Assert text visible: Welcome"
     assert plan.steps[0].details == {"text": "Welcome"}
+
+
+def test_demo_dry_run_planner_summarizes_assert_element_visible() -> None:
+    script = DemoScript(
+        title="Element assertion plan",
+        steps=[
+            DemoStep(action=DemoActionType.ASSERT_ELEMENT_VISIBLE, selector="#hero"),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Assert element visible: #hero"
+    assert plan.steps[0].details == {"selector": "#hero"}
