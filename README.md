@@ -27,6 +27,10 @@ The current execution path is:
 
 ```text
 DemoScript
+  -> DemoDryRunPlanner
+  -> DemoPlan
+
+DemoScript
   -> DemoRunner
   -> DemoExecutor
   -> BrowserDemoExecutor
@@ -47,6 +51,12 @@ Validate the DemoScript JSON without launching a browser:
 
 ```bash
 hermes-screencast demo-validate /tmp/hermes_demo.json
+```
+
+Print a deterministic dry-run plan without launching a browser:
+
+```bash
+hermes-screencast demo-plan /tmp/hermes_demo.json
 ```
 
 Run the validated DemoScript in headless browser mode:
