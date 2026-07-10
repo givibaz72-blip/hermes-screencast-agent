@@ -10,6 +10,9 @@ from hermes_screencast.demo.script import (
 def test_valid_demo_script_passes_validation():
     script = DemoScript(
         title="Pricing walkthrough",
+        target={"kind": "web", "url": "https://example.com"},
+        preferences={"cursor_speed": "natural"},
+        metadata={"schema": "hermes.demo.v1"},
         steps=[
             DemoStep(action=DemoActionType.GOTO, url="https://example.com"),
             DemoStep(action=DemoActionType.HOVER, selector="text=Pricing"),
@@ -21,6 +24,30 @@ def test_valid_demo_script_passes_validation():
     )
 
     script.validate()
+
+
+def test_demo_script_keeps_schema_fields_optional_for_legacy_scripts():
+    script = DemoScript(
+        title="Legacy script",
+        steps=[DemoStep(action=DemoActionType.GOTO, url="https://example.com")],
+    )
+
+    script.validate()
+
+    assert script.target == {}
+    assert script.preferences == {}
+    assert script.metadata == {}
+
+
+def test_demo_script_requires_object_schema_fields():
+    script = DemoScript(
+        title="Broken script",
+        target=[],
+        steps=[DemoStep(action=DemoActionType.GOTO, url="https://example.com")],
+    )
+
+    with pytest.raises(ValueError, match="target must be an object"):
+        script.validate()
 
 
 def test_demo_script_requires_title():

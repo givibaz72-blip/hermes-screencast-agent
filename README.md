@@ -68,6 +68,20 @@ Example:
 ```json
 {
   "title": "Hermes demo",
+  "target": {
+    "kind": "web",
+    "url": "https://example.com"
+  },
+  "preferences": {
+    "resolution": "1080p",
+    "cursor_speed": "natural",
+    "highlight_style": "subtle",
+    "marker_colors": ["yellow", "blue"],
+    "pacing": "professional"
+  },
+  "metadata": {
+    "schema": "hermes.demo.v1"
+  },
   "steps": [
     {
       "action": "goto",
@@ -96,6 +110,14 @@ Example:
   ]
 }
 ```
+
+Top-level DemoScript fields:
+
+- `title`: required string
+- `target`: optional object describing the application, site, document, or tool
+- `preferences`: optional object describing cursor speed, marker colors, resolution, and pacing
+- `metadata`: optional object for schema and run metadata
+- `steps`: required list of executable demo steps
 
 Supported action types currently include:
 

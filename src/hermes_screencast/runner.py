@@ -75,6 +75,20 @@ def write_planned_task(args: argparse.Namespace) -> Path:
 def build_demo_template() -> dict:
     return {
         "title": "Hermes demo",
+        "target": {
+            "kind": "web",
+            "url": "https://example.com",
+        },
+        "preferences": {
+            "resolution": "1080p",
+            "cursor_speed": "natural",
+            "highlight_style": "subtle",
+            "marker_colors": ["yellow", "blue"],
+            "pacing": "professional",
+        },
+        "metadata": {
+            "schema": "hermes.demo.v1",
+        },
         "steps": [
             {
                 "action": "goto",

@@ -14,6 +14,17 @@ def test_load_demo_script_from_json_file(tmp_path) -> None:
         json.dumps(
             {
                 "title": "JSON demo",
+                "target": {
+                    "kind": "web",
+                    "url": "https://example.com",
+                },
+                "preferences": {
+                    "cursor_speed": "natural",
+                    "highlight_style": "subtle",
+                },
+                "metadata": {
+                    "schema": "hermes.demo.v1",
+                },
                 "steps": [
                     {"action": "goto", "url": "https://example.com"},
                     {"action": "wait", "seconds": 1},
@@ -29,12 +40,30 @@ def test_load_demo_script_from_json_file(tmp_path) -> None:
     script = load_demo_script(path)
 
     assert script.title == "JSON demo"
+    assert script.target == {"kind": "web", "url": "https://example.com"}
+    assert script.preferences["cursor_speed"] == "natural"
+    assert script.metadata == {"schema": "hermes.demo.v1"}
     assert len(script.steps) == 5
     assert script.steps[0].action == DemoActionType.GOTO
     assert script.steps[0].url == "https://example.com"
     assert script.steps[2].text == "Hello from JSON"
     assert script.steps[3].selector == "h1"
     assert script.steps[4].value == 250
+
+
+def test_demo_script_from_dict_keeps_schema_fields_optional_for_legacy_json() -> None:
+    script = demo_script_from_dict(
+        {
+            "title": "Legacy JSON demo",
+            "steps": [
+                {"action": "goto", "url": "https://example.com"},
+            ],
+        }
+    )
+
+    assert script.target == {}
+    assert script.preferences == {}
+    assert script.metadata == {}
 
 
 def test_demo_script_from_dict_rejects_missing_title() -> None:
@@ -53,6 +82,32 @@ def test_demo_script_from_dict_rejects_missing_steps() -> None:
         demo_script_from_dict(
             {
                 "title": "Missing steps",
+            }
+        )
+
+
+def test_demo_script_from_dict_rejects_unknown_top_level_field() -> None:
+    with pytest.raises(ValueError, match="unknown field"):
+        demo_script_from_dict(
+            {
+                "title": "Unknown top-level field",
+                "unexpected": True,
+                "steps": [
+                    {"action": "goto", "url": "https://example.com"},
+                ],
+            }
+        )
+
+
+def test_demo_script_from_dict_rejects_non_object_target() -> None:
+    with pytest.raises(ValueError, match="field must be an object: target"):
+        demo_script_from_dict(
+            {
+                "title": "Bad target",
+                "target": [],
+                "steps": [
+                    {"action": "goto", "url": "https://example.com"},
+                ],
             }
         )
 
