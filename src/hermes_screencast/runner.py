@@ -3,16 +3,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-
+from .recorder_adapter import RecorderAdapter
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .planner import make_basic_task
 from .verifier import verify_mp4
 
 VALID_MODES = {"public", "authenticated", "assisted_login"}
 
-def run(cmd: list[str]) -> None:
-    print("→", " ".join(cmd), flush=True)
-    subprocess.run(cmd, check=True)
 
 def record_task(task_path: Path) -> Path:
     task_path = task_path.expanduser().resolve()
@@ -31,7 +28,7 @@ def record_task(task_path: Path) -> Path:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     before = set(OUTPUT_DIR.glob("*.mp4"))
-    run([str(PYTHON), str(RECORDER), str(task_path)])
+    RecorderAdapter().run(task_path)
     after = set(OUTPUT_DIR.glob("*.mp4"))
 
     new_files = sorted(after - before, key=lambda p: p.stat().st_mtime)

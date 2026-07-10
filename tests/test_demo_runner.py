@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from hermes_screencast.demo.runner import DemoRunner
+from hermes_screencast.demo.script import DemoActionType, DemoScript, DemoStep
+
+
+@dataclass
+class RecordingDemoExecutor:
+    calls: list[tuple[str, tuple[object, ...]]] = field(default_factory=list)
+
+    def goto(self, url: str) -> None:
+        self.calls.append(("goto", (url,)))
+
+    def click(self, selector: str) -> None:
+        self.calls.append(("click", (selector,)))
+
+    def hover(self, selector: str) -> None:
+        self.calls.append(("hover", (selector,)))
+
+    def fill(self, selector: str, text: str) -> None:
+        self.calls.append(("fill", (selector, text)))
+
+    def scroll(self, amount: int) -> None:
+        self.calls.append(("scroll", (amount,)))
+
+    def wait(self, seconds: float) -> None:
+        self.calls.append(("wait", (seconds,)))
+
+    def zoom(self, selector: str) -> None:
+        self.calls.append(("zoom", (selector,)))
+
+    def highlight(self, selector: str) -> None:
+        self.calls.append(("highlight", (selector,)))
+
+    def draw_box(self, selector: str) -> None:
+        self.calls.append(("draw_box", (selector,)))
+
+    def draw_arrow(self, selector: str) -> None:
+        self.calls.append(("draw_arrow", (selector,)))
+
+    def narration(self, text: str) -> None:
+        self.calls.append(("narration", (text,)))
+
+    def auth_check(self) -> None:
+        self.calls.append(("auth_check", ()))
+
+
+def test_demo_runner_executes_steps_in_order() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Demo runner test",
+        steps=[
+            DemoStep(action=DemoActionType.GOTO, url="https://example.com"),
+            DemoStep(action=DemoActionType.AUTH_CHECK),
+            DemoStep(action=DemoActionType.CLICK, selector="#login"),
+            DemoStep(action=DemoActionType.FILL, selector="#email", text="demo@example.com"),
+            DemoStep(action=DemoActionType.SCROLL, value="300"),
+            DemoStep(action=DemoActionType.WAIT, seconds=1.5),
+            DemoStep(action=DemoActionType.NARRATION, text="Done"),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 7
+    assert result.error is None
+    assert executor.calls == [
+        ("goto", ("https://example.com",)),
+        ("auth_check", ()),
+        ("click", ("#login",)),
+        ("fill", ("#email", "demo@example.com")),
+        ("scroll", (300,)),
+        ("wait", (1.5,)),
+        ("narration", ("Done",)),
+    ]
+
+
+def test_demo_runner_stops_after_failed_step() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Invalid demo runner test",
+        steps=[
+            DemoStep(action=DemoActionType.GOTO, url="https://example.com"),
+            DemoStep(action=DemoActionType.CLICK),
+            DemoStep(action=DemoActionType.NARRATION, text="Should not run"),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is False
+    assert result.completed_steps == 0
+    assert "click requires selector" in str(result.error)
+    assert executor.calls == []
