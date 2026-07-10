@@ -4,7 +4,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
+from .demo.browser_executor import BrowserDemoExecutor
+from .demo.json_loader import load_demo_script
+from .demo.runner import DemoRunner
 from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
 from .recorder_adapter import RecorderAdapter
@@ -80,6 +84,25 @@ def run_demo_smoke_command(args: argparse.Namespace) -> None:
     print(f"✅ DemoScript executed: {result.completed_steps} steps", flush=True)
 
 
+def run_demo_json_command(args: argparse.Namespace) -> None:
+    script = load_demo_script(Path(args.demo_json))
+
+    config = BrowserRuntimeConfig(
+        profile=args.profile,
+        headless=args.headless,
+    )
+
+    with BrowserRuntime(config=config) as runtime:
+        executor = BrowserDemoExecutor(runtime=runtime)
+        runner = DemoRunner(executor=executor)
+        result = runner.run(script)
+
+    if not result.success:
+        raise RuntimeError(result.error)
+
+    print(f"✅ DemoScript executed: {result.completed_steps} steps", flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -113,6 +136,11 @@ def build_parser() -> argparse.ArgumentParser:
     demo_smoke.add_argument("--headless", action="store_true")
     demo_smoke.add_argument("--profile", default="demo-smoke")
 
+    demo_run = sub.add_parser("demo-run", help="Run a DemoScript JSON file")
+    demo_run.add_argument("demo_json")
+    demo_run.add_argument("--headless", action="store_true")
+    demo_run.add_argument("--profile", default="demo-json")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -136,6 +164,10 @@ def main() -> None:
 
     if args.command == "demo-smoke":
         run_demo_smoke_command(args)
+        return
+
+    if args.command == "demo-run":
+        run_demo_json_command(args)
         return
 
     if args.legacy_task_json:
