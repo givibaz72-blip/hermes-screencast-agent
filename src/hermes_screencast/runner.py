@@ -153,6 +153,11 @@ def run_demo_init_command(args: argparse.Namespace) -> None:
     write_demo_template(Path(args.output))
 
 
+def run_demo_validate_command(args: argparse.Namespace) -> None:
+    script = load_demo_script(Path(args.demo_json))
+    print(f"✅ DemoScript valid: {len(script.steps)} steps", flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -194,6 +199,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo_init = sub.add_parser("demo-init", help="Create a starter DemoScript JSON file")
     demo_init.add_argument("output")
 
+    demo_validate = sub.add_parser("demo-validate", help="Validate a DemoScript JSON file")
+    demo_validate.add_argument("demo_json")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -225,6 +233,10 @@ def main() -> None:
 
     if args.command == "demo-init":
         run_demo_init_command(args)
+        return
+
+    if args.command == "demo-validate":
+        run_demo_validate_command(args)
         return
 
     if args.legacy_task_json:
