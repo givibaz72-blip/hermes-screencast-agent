@@ -2,21 +2,34 @@
 
 AI-assisted browser screencast agent for Hermes.
 
-It records polished website walkthroughs using Playwright, Xvfb, FFmpeg, cursor event logging, and automatic zoom processing.
+It records polished website walkthroughs using Playwright, Xvfb, FFmpeg, cursor event logging, automatic zoom processing, and DemoScript execution.
 
 ## Status
 
 MVP bootstrap.
 
-## Goals
+## What Hermes can do now
 
-- Record website and SaaS walkthroughs.
-- Use saved browser sessions.
-- Support assisted login for CAPTCHA/2FA.
-- Apply automatic cursor-centered zoom.
-- Verify final MP4 output.
-- Integrate with Hermes as a user-local skill.
+Hermes can execute browser demo scenarios through DemoScript.
 
-## Safety
+A DemoScript is a structured scenario made of steps such as:
 
-This project does not bypass CAPTCHA, Cloudflare, 2FA, SMS codes, email codes, or passkeys automatically.
+- open a URL
+- wait
+- show narration
+- highlight an element
+- draw a box around an element
+- scroll
+- click
+- fill text
+
+The current execution path is:
+
+```text
+DemoScript
+  -> DemoRunner
+  -> DemoExecutor
+  -> BrowserDemoExecutor
+  -> BrowserRuntime
+  -> BrowserSession
+  -> Playwright
