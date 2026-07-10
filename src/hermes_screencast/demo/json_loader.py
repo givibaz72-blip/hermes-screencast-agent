@@ -7,6 +7,15 @@ from typing import Any
 from hermes_screencast.demo.script import DemoActionType, DemoScript, DemoStep
 
 
+_ALLOWED_SCRIPT_FIELDS = {
+    "title",
+    "target",
+    "preferences",
+    "metadata",
+    "steps",
+}
+
+
 _ALLOWED_STEP_FIELDS = {
     "action",
     "selector",
@@ -30,7 +39,18 @@ def load_demo_script(path: Path) -> DemoScript:
 
 
 def demo_script_from_dict(payload: dict[str, Any]) -> DemoScript:
+    if not isinstance(payload, dict):
+        raise ValueError("DemoScript JSON root must be an object")
+
+    unknown_fields = set(payload) - _ALLOWED_SCRIPT_FIELDS
+    if unknown_fields:
+        fields = ", ".join(sorted(unknown_fields))
+        raise ValueError(f"DemoScript JSON unknown field(s): {fields}")
+
     title = payload.get("title")
+    target = _optional_object_field(payload, "target")
+    preferences = _optional_object_field(payload, "preferences")
+    metadata = _optional_object_field(payload, "metadata")
     steps_payload = payload.get("steps")
 
     if not isinstance(title, str):
@@ -44,9 +64,19 @@ def demo_script_from_dict(payload: dict[str, Any]) -> DemoScript:
     script = DemoScript(
         title=title,
         steps=steps,
+        target=target,
+        preferences=preferences,
+        metadata=metadata,
     )
     script.validate()
     return script
+
+
+def _optional_object_field(payload: dict[str, Any], field_name: str) -> dict[str, Any]:
+    value = payload.get(field_name, {})
+    if not isinstance(value, dict):
+        raise ValueError(f"DemoScript JSON field must be an object: {field_name}")
+    return value
 
 
 def _demo_step_from_dict(index: int, payload: dict[str, Any]) -> DemoStep:

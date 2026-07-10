@@ -38,16 +38,27 @@ class DemoStep:
 class DemoScript:
     title: str
     steps: list[DemoStep]
+    target: dict[str, Any] = field(default_factory=dict)
+    preferences: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
         if not self.title.strip():
             raise ValueError("DemoScript title cannot be empty")
+
+        self._validate_mapping("target", self.target)
+        self._validate_mapping("preferences", self.preferences)
+        self._validate_mapping("metadata", self.metadata)
 
         if not self.steps:
             raise ValueError("DemoScript must contain at least one step")
 
         for index, step in enumerate(self.steps):
             self._validate_step(index, step)
+
+    def _validate_mapping(self, field_name: str, value: Any) -> None:
+        if not isinstance(value, dict):
+            raise ValueError(f"DemoScript {field_name} must be an object")
 
     def _validate_step(self, index: int, step: DemoStep) -> None:
         if step.action == DemoActionType.GOTO and not step.url:
