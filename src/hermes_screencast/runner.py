@@ -72,6 +72,52 @@ def write_planned_task(args: argparse.Namespace) -> Path:
     return output
 
 
+def build_demo_template() -> dict:
+    return {
+        "title": "Hermes demo",
+        "steps": [
+            {
+                "action": "goto",
+                "url": "https://example.com",
+            },
+            {
+                "action": "wait",
+                "seconds": 1,
+            },
+            {
+                "action": "narration",
+                "text": "Hermes is executing a DemoScript from JSON",
+            },
+            {
+                "action": "highlight",
+                "selector": "h1",
+            },
+            {
+                "action": "draw_box",
+                "selector": "h1",
+            },
+            {
+                "action": "wait",
+                "seconds": 1,
+            },
+        ],
+    }
+
+
+def write_demo_template(output: Path) -> Path:
+    output_path = output.expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    template = build_demo_template()
+    output_path.write_text(
+        json.dumps(template, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    print(f"✅ DemoScript JSON written: {output_path}", flush=True)
+    return output_path
+
+
 def run_demo_smoke_command(args: argparse.Namespace) -> None:
     result = run_smoke_demo(
         profile=args.profile,
@@ -101,6 +147,10 @@ def run_demo_json_command(args: argparse.Namespace) -> None:
         raise RuntimeError(result.error)
 
     print(f"✅ DemoScript executed: {result.completed_steps} steps", flush=True)
+
+
+def run_demo_init_command(args: argparse.Namespace) -> None:
+    write_demo_template(Path(args.output))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -141,6 +191,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo_run.add_argument("--headless", action="store_true")
     demo_run.add_argument("--profile", default="demo-json")
 
+    demo_init = sub.add_parser("demo-init", help="Create a starter DemoScript JSON file")
+    demo_init.add_argument("output")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -168,6 +221,10 @@ def main() -> None:
 
     if args.command == "demo-run":
         run_demo_json_command(args)
+        return
+
+    if args.command == "demo-init":
+        run_demo_init_command(args)
         return
 
     if args.legacy_task_json:
