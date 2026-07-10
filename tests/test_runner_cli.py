@@ -27,3 +27,18 @@ def test_demo_smoke_parser():
     assert args.command == "demo-smoke"
     assert args.headless is True
     assert args.profile == "test-demo"
+
+
+def test_demo_run_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-run",
+        "/tmp/demo.json",
+        "--headless",
+        "--profile", "json-demo",
+    ])
+
+    assert args.command == "demo-run"
+    assert args.demo_json == "/tmp/demo.json"
+    assert args.headless is True
+    assert args.profile == "json-demo"
