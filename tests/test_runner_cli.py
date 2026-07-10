@@ -1,5 +1,6 @@
 from hermes_screencast.runner import build_parser
 
+
 def test_plan_parser():
     parser = build_parser()
     args = parser.parse_args([
@@ -13,3 +14,16 @@ def test_plan_parser():
     assert args.url == "https://example.com"
     assert args.hover == "a"
     assert args.output == "/tmp/task.json"
+
+
+def test_demo_smoke_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-smoke",
+        "--headless",
+        "--profile", "test-demo",
+    ])
+
+    assert args.command == "demo-smoke"
+    assert args.headless is True
+    assert args.profile == "test-demo"
