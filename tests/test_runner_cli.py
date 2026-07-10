@@ -53,3 +53,14 @@ def test_demo_init_parser():
 
     assert args.command == "demo-init"
     assert args.output == "/tmp/demo.json"
+
+
+def test_demo_validate_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-validate",
+        "/tmp/demo.json",
+    ])
+
+    assert args.command == "demo-validate"
+    assert args.demo_json == "/tmp/demo.json"
