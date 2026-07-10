@@ -57,6 +57,8 @@ class DemoRunner:
             self._auth_check()
         elif step.action == DemoActionType.ASSERT_TEXT_VISIBLE:
             self._assert_text_visible(step)
+        elif step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
+            self._assert_element_visible(step)
         else:
             self._unsupported_action(step)
 
@@ -111,6 +113,10 @@ class DemoRunner:
     def _assert_text_visible(self, step: DemoStep) -> None:
         assert step.text is not None
         self.executor.assert_text_visible(step.text)
+
+    def _assert_element_visible(self, step: DemoStep) -> None:
+        assert step.selector is not None
+        self.executor.assert_element_visible(step.selector)
 
     def _unsupported_action(self, step: DemoStep) -> NoReturn:
         raise ValueError(f"Unsupported demo action: {step.action}")

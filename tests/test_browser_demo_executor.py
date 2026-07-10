@@ -149,3 +149,25 @@ def test_browser_demo_executor_assert_text_visible_fails_when_text_is_missing() 
 
     with pytest.raises(AssertionError, match="Text not visible: Missing text"):
         executor.assert_text_visible("Missing text")
+
+
+def test_browser_demo_executor_assert_element_visible_passes_when_element_is_visible() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.assert_element_visible("#hero")
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "document.querySelector('#hero')" in args[0]
+    assert "getBoundingClientRect" in args[0]
+
+
+def test_browser_demo_executor_assert_element_visible_fails_when_element_is_missing() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(AssertionError, match="Element not visible: #missing"):
+        executor.assert_element_visible("#missing")
