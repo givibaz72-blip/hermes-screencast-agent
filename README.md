@@ -144,6 +144,7 @@ draw_box
 draw_arrow
 narration
 auth_check
+assert_text_visible
 ```
 
 ## Legacy screencast commands

@@ -101,3 +101,17 @@ def test_demo_dry_run_planner_validates_script_before_planning() -> None:
 
     with pytest.raises(ValueError, match="click requires selector"):
         DemoDryRunPlanner().plan(script)
+
+
+def test_demo_dry_run_planner_summarizes_assert_text_visible() -> None:
+    script = DemoScript(
+        title="Assertion plan",
+        steps=[
+            DemoStep(action=DemoActionType.ASSERT_TEXT_VISIBLE, text="Welcome"),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Assert text visible: Welcome"
+    assert plan.steps[0].details == {"text": "Welcome"}

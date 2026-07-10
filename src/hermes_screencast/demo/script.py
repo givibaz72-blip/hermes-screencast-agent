@@ -20,6 +20,7 @@ class DemoActionType(str, Enum):
 
     NARRATION = "narration"
     AUTH_CHECK = "auth_check"
+    ASSERT_TEXT_VISIBLE = "assert_text_visible"
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,9 @@ class DemoScript:
 
         if step.action == DemoActionType.NARRATION and step.text is None:
             raise ValueError(f"Step {index}: narration requires text")
+
+        if step.action == DemoActionType.ASSERT_TEXT_VISIBLE and step.text is None:
+            raise ValueError(f"Step {index}: assert_text_visible requires text")
 
 
 @dataclass(frozen=True)

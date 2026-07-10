@@ -41,3 +41,6 @@ class DemoExecutor(Protocol):
 
     def auth_check(self) -> None:
         ...
+
+    def assert_text_visible(self, text: str) -> None:
+        ...

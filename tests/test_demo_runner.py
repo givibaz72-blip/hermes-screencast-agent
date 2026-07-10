@@ -46,6 +46,9 @@ class RecordingDemoExecutor:
     def auth_check(self) -> None:
         self.calls.append(("auth_check", ()))
 
+    def assert_text_visible(self, text: str) -> None:
+        self.calls.append(("assert_text_visible", (text,)))
+
 
 def test_demo_runner_executes_steps_in_order() -> None:
     executor = RecordingDemoExecutor()
@@ -99,3 +102,23 @@ def test_demo_runner_stops_after_failed_step() -> None:
     assert result.completed_steps == 0
     assert "click requires selector" in str(result.error)
     assert executor.calls == []
+
+
+def test_demo_runner_executes_assert_text_visible() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Assertion runner test",
+        steps=[
+            DemoStep(action=DemoActionType.ASSERT_TEXT_VISIBLE, text="Welcome"),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("assert_text_visible", ("Welcome",)),
+    ]

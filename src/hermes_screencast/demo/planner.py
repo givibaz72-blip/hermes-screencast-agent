@@ -120,6 +120,9 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.AUTH_CHECK:
             return "Check authentication state"
 
+        if step.action == DemoActionType.ASSERT_TEXT_VISIBLE:
+            return f"Assert text visible: {step.text}"
+
         raise ValueError(f"Unsupported demo action: {step.action}")
 
     def _details_for_step(self, step: DemoStep) -> dict[str, Any]:
