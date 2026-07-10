@@ -3,9 +3,11 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from .recorder_adapter import RecorderAdapter
+
 from .config import OUTPUT_DIR, PYTHON, RECORDER
+from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
+from .recorder_adapter import RecorderAdapter
 from .verifier import verify_mp4
 
 VALID_MODES = {"public", "authenticated", "assisted_login"}
@@ -46,6 +48,7 @@ def record_task(task_path: Path) -> Path:
     print(f"✅ Final screencast: {final}", flush=True)
     return final
 
+
 def write_planned_task(args: argparse.Namespace) -> Path:
     task = make_basic_task(
         url=args.url,
@@ -63,6 +66,19 @@ def write_planned_task(args: argparse.Namespace) -> Path:
     output.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"✅ Task written: {output}", flush=True)
     return output
+
+
+def run_demo_smoke_command(args: argparse.Namespace) -> None:
+    result = run_smoke_demo(
+        profile=args.profile,
+        headless=args.headless,
+    )
+
+    if not result.success:
+        raise RuntimeError(result.error)
+
+    print(f"✅ DemoScript executed: {result.completed_steps} steps", flush=True)
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
@@ -93,8 +109,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_cmd.add_argument("--sync-offset", type=float, default=0.3)
     run_cmd.add_argument("--output", default="/tmp/hermes_screencast_task.json")
 
+    demo_smoke = sub.add_parser("demo-smoke", help="Run the built-in DemoScript smoke test")
+    demo_smoke.add_argument("--headless", action="store_true")
+    demo_smoke.add_argument("--profile", default="demo-smoke")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
+
 
 def main() -> None:
     parser = build_parser()
@@ -113,12 +134,17 @@ def main() -> None:
         record_task(task_path)
         return
 
+    if args.command == "demo-smoke":
+        run_demo_smoke_command(args)
+        return
+
     if args.legacy_task_json:
         record_task(Path(args.legacy_task_json))
         return
 
     parser.print_help()
     raise SystemExit(1)
+
 
 if __name__ == "__main__":
     main()
