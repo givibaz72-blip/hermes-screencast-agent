@@ -33,3 +33,117 @@ DemoScript
   -> BrowserRuntime
   -> BrowserSession
   -> Playwright
+```
+
+## Quick start: DemoScript CLI
+
+Create a starter DemoScript JSON file:
+
+```bash
+hermes-screencast demo-init /tmp/hermes_demo.json
+```
+
+Validate the DemoScript JSON without launching a browser:
+
+```bash
+hermes-screencast demo-validate /tmp/hermes_demo.json
+```
+
+Run the validated DemoScript in headless browser mode:
+
+```bash
+hermes-screencast demo-run /tmp/hermes_demo.json --headless --profile demo-cli
+```
+
+Run the built-in smoke DemoScript:
+
+```bash
+hermes-screencast demo-smoke --headless --profile demo-smoke
+```
+
+## DemoScript JSON format
+
+Example:
+
+```json
+{
+  "title": "Hermes demo",
+  "steps": [
+    {
+      "action": "goto",
+      "url": "https://example.com"
+    },
+    {
+      "action": "wait",
+      "seconds": 1
+    },
+    {
+      "action": "narration",
+      "text": "Hermes is executing a DemoScript from JSON"
+    },
+    {
+      "action": "highlight",
+      "selector": "h1"
+    },
+    {
+      "action": "draw_box",
+      "selector": "h1"
+    },
+    {
+      "action": "wait",
+      "seconds": 1
+    }
+  ]
+}
+```
+
+Supported action types currently include:
+
+```text
+goto
+click
+hover
+fill
+scroll
+wait
+zoom
+highlight
+draw_box
+draw_arrow
+narration
+auth_check
+```
+
+## Legacy screencast commands
+
+Create a basic task JSON:
+
+```bash
+hermes-screencast plan --url https://example.com --output /tmp/task.json
+```
+
+Record from an existing task JSON:
+
+```bash
+hermes-screencast record /tmp/task.json
+```
+
+Create a basic task JSON and record it:
+
+```bash
+hermes-screencast run --url https://example.com
+```
+
+## Goals
+
+- Record website and SaaS walkthroughs.
+- Use saved browser sessions.
+- Support assisted login for CAPTCHA/2FA.
+- Execute structured DemoScript scenarios.
+- Apply automatic cursor-centered zoom.
+- Verify final MP4 output.
+- Integrate with Hermes as a user-local skill.
+
+## Safety
+
+This project does not bypass CAPTCHA, Cloudflare, 2FA, SMS codes, email codes, or passkeys automatically.
