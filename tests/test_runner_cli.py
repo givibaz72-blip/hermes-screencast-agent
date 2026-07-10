@@ -64,3 +64,14 @@ def test_demo_validate_parser():
 
     assert args.command == "demo-validate"
     assert args.demo_json == "/tmp/demo.json"
+
+
+def test_demo_plan_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-plan",
+        "/tmp/demo.json",
+    ])
+
+    assert args.command == "demo-plan"
+    assert args.demo_json == "/tmp/demo.json"

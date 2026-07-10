@@ -8,6 +8,7 @@ from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
 from .demo.json_loader import load_demo_script
+from .demo.planner import DemoDryRunPlanner
 from .demo.runner import DemoRunner
 from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
@@ -172,6 +173,12 @@ def run_demo_validate_command(args: argparse.Namespace) -> None:
     print(f"✅ DemoScript valid: {len(script.steps)} steps", flush=True)
 
 
+def run_demo_plan_command(args: argparse.Namespace) -> None:
+    script = load_demo_script(Path(args.demo_json))
+    plan = DemoDryRunPlanner().plan(script)
+    print(plan.to_text(), flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -216,6 +223,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo_validate = sub.add_parser("demo-validate", help="Validate a DemoScript JSON file")
     demo_validate.add_argument("demo_json")
 
+    demo_plan = sub.add_parser("demo-plan", help="Print a dry-run plan for a DemoScript JSON file")
+    demo_plan.add_argument("demo_json")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -251,6 +261,10 @@ def main() -> None:
 
     if args.command == "demo-validate":
         run_demo_validate_command(args)
+        return
+
+    if args.command == "demo-plan":
+        run_demo_plan_command(args)
         return
 
     if args.legacy_task_json:
