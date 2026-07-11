@@ -126,6 +126,14 @@ class DemoDryRunPlanner:
             )
             return f"Wait for text: {step.text}{timeout}"
 
+        if step.action == DemoActionType.WAIT_FOR_NOT_TEXT_VISIBLE:
+            timeout = (
+                ""
+                if step.seconds is None
+                else f" for up to {step.seconds} seconds"
+            )
+            return f"Wait for text to disappear: {step.text}{timeout}"
+
         if step.action == DemoActionType.WAIT_FOR_NAVIGATION_IDLE:
             timeout = (
                 ""

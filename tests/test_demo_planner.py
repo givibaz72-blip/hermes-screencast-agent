@@ -199,6 +199,26 @@ def test_demo_dry_run_planner_summarizes_wait_for_text_visible() -> None:
     assert plan.steps[0].details == {"text": "Welcome", "seconds": 2}
 
 
+def test_demo_dry_run_planner_summarizes_wait_for_not_text_visible() -> None:
+    script = DemoScript(
+        title="Wait hidden text plan",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_NOT_TEXT_VISIBLE,
+                text="Loading",
+                seconds=2,
+            ),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == (
+        "Wait for text to disappear: Loading for up to 2 seconds"
+    )
+    assert plan.steps[0].details == {"text": "Loading", "seconds": 2}
+
+
 def test_demo_dry_run_planner_summarizes_wait_for_navigation_idle() -> None:
     script = DemoScript(
         title="Wait navigation plan",

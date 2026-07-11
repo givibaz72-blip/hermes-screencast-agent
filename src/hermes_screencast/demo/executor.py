@@ -33,6 +33,13 @@ class DemoExecutor(Protocol):
     def wait_for_text_visible(self, text: str, timeout_seconds: float | None = None) -> None:
         ...
 
+    def wait_for_not_text_visible(
+        self,
+        text: str,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        ...
+
     def wait_for_navigation_idle(self, timeout_seconds: float | None = None) -> None:
         ...
 
