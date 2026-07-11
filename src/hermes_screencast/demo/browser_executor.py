@@ -12,6 +12,7 @@ DEFAULT_WAIT_FOR_URL_SECONDS = 5.0
 WAIT_FOR_URL_POLL_SECONDS = 0.1
 DEFAULT_WAIT_FOR_TEXT_SECONDS = 5.0
 WAIT_FOR_TEXT_POLL_SECONDS = 0.1
+DEFAULT_WAIT_FOR_NAVIGATION_IDLE_SECONDS = 1.0
 
 
 class BrowserRuntimeLike(Protocol):
@@ -55,6 +56,14 @@ class BrowserDemoExecutor:
 
     def wait(self, seconds: float) -> None:
         self.runtime.wait(seconds)
+
+    def wait_for_navigation_idle(self, timeout_seconds: float | None = None) -> None:
+        timeout = (
+            DEFAULT_WAIT_FOR_NAVIGATION_IDLE_SECONDS
+            if timeout_seconds is None
+            else timeout_seconds
+        )
+        self.runtime.wait(timeout)
 
     def zoom(self, selector: str) -> None:
         self.runtime.evaluate(
