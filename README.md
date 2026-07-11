@@ -141,6 +141,7 @@ wait
 wait_for_element
 wait_for_url_contains
 wait_for_text_visible
+wait_for_navigation_idle
 zoom
 highlight
 draw_box
