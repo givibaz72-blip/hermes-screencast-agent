@@ -140,6 +140,7 @@ scroll
 wait
 wait_for_element
 wait_for_url_contains
+wait_for_text_visible
 zoom
 highlight
 draw_box

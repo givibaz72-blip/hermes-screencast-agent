@@ -10,6 +10,8 @@ DEFAULT_WAIT_FOR_ELEMENT_SECONDS = 5.0
 WAIT_FOR_ELEMENT_POLL_SECONDS = 0.1
 DEFAULT_WAIT_FOR_URL_SECONDS = 5.0
 WAIT_FOR_URL_POLL_SECONDS = 0.1
+DEFAULT_WAIT_FOR_TEXT_SECONDS = 5.0
+WAIT_FOR_TEXT_POLL_SECONDS = 0.1
 
 
 class BrowserRuntimeLike(Protocol):
@@ -190,18 +192,37 @@ class BrowserDemoExecutor:
             raise RuntimeError("Browser page is not authenticated")
 
     def assert_text_visible(self, text: str) -> None:
-        result = self.runtime.evaluate(
-            f"""
-            (() => {{
-                const expectedText = {text!r};
-                const bodyText = document.body ? document.body.innerText : "";
-                return bodyText.includes(expectedText);
-            }})();
-            """
-        )
-
-        if not result:
+        if not self._is_text_visible(text):
             raise AssertionError(f"Text not visible: {text}")
+
+    def wait_for_text_visible(self, text: str, timeout_seconds: float | None = None) -> None:
+        timeout = DEFAULT_WAIT_FOR_TEXT_SECONDS if timeout_seconds is None else timeout_seconds
+        deadline = time.monotonic() + timeout
+
+        while True:
+            if self._is_text_visible(text):
+                return
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+
+            self.runtime.wait(min(WAIT_FOR_TEXT_POLL_SECONDS, remaining))
+
+        raise TimeoutError(f"Timed out waiting for text: {text}")
+
+    def _is_text_visible(self, text: str) -> bool:
+        return bool(
+            self.runtime.evaluate(
+                f"""
+                (() => {{
+                    const expectedText = {text!r};
+                    const bodyText = document.body ? document.body.innerText : "";
+                    return bodyText.includes(expectedText);
+                }})();
+                """
+            )
+        )
 
     def assert_element_visible(self, selector: str) -> None:
         if not self._is_element_visible(selector):

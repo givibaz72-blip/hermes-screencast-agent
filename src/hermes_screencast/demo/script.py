@@ -14,6 +14,7 @@ class DemoActionType(str, Enum):
     WAIT = "wait"
     WAIT_FOR_ELEMENT = "wait_for_element"
     WAIT_FOR_URL_CONTAINS = "wait_for_url_contains"
+    WAIT_FOR_TEXT_VISIBLE = "wait_for_text_visible"
 
     ZOOM = "zoom"
     HIGHLIGHT = "highlight"
@@ -98,6 +99,12 @@ class DemoScript:
                 raise ValueError(f"Step {index}: wait_for_url_contains requires url")
             if step.seconds is not None and step.seconds < 0:
                 raise ValueError(f"Step {index}: wait_for_url_contains requires non-negative seconds")
+
+        if step.action == DemoActionType.WAIT_FOR_TEXT_VISIBLE:
+            if step.text is None:
+                raise ValueError(f"Step {index}: wait_for_text_visible requires text")
+            if step.seconds is not None and step.seconds < 0:
+                raise ValueError(f"Step {index}: wait_for_text_visible requires non-negative seconds")
 
         if step.action == DemoActionType.SCROLL:
             if step.value is None:
