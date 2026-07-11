@@ -43,6 +43,8 @@ class DemoRunner:
             self._scroll(step)
         elif step.action == DemoActionType.WAIT:
             self._wait(step)
+        elif step.action == DemoActionType.WAIT_FOR_ELEMENT:
+            self._wait_for_element(step)
         elif step.action == DemoActionType.ZOOM:
             self._zoom(step)
         elif step.action == DemoActionType.HIGHLIGHT:
@@ -88,6 +90,10 @@ class DemoRunner:
     def _wait(self, step: DemoStep) -> None:
         assert step.seconds is not None
         self.executor.wait(step.seconds)
+
+    def _wait_for_element(self, step: DemoStep) -> None:
+        assert step.selector is not None
+        self.executor.wait_for_element(step.selector, step.seconds)
 
     def _zoom(self, step: DemoStep) -> None:
         assert step.selector is not None

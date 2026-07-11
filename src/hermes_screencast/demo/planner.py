@@ -102,6 +102,14 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.WAIT:
             return f"Wait for {step.seconds} seconds"
 
+        if step.action == DemoActionType.WAIT_FOR_ELEMENT:
+            timeout = (
+                ""
+                if step.seconds is None
+                else f" for up to {step.seconds} seconds"
+            )
+            return f"Wait for element: {step.selector}{timeout}"
+
         if step.action == DemoActionType.ZOOM:
             return f"Zoom into element: {step.selector}"
 

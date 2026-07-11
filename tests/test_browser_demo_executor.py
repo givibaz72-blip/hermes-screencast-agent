@@ -193,3 +193,31 @@ def test_browser_demo_executor_assert_url_contains_fails_when_url_does_not_match
 
     with pytest.raises(AssertionError, match="URL does not contain: /settings"):
         executor.assert_url_contains("/settings")
+
+
+def test_browser_demo_executor_wait_for_element_returns_when_visible() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_element("#hero", timeout_seconds=2)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "document.querySelector('#hero')" in args[0]
+    assert "getBoundingClientRect" in args[0]
+
+
+def test_browser_demo_executor_wait_for_element_fails_when_timeout_expires() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(TimeoutError, match="Timed out waiting for element: #missing"):
+        executor.wait_for_element("#missing", timeout_seconds=0)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "document.querySelector('#missing')" in args[0]

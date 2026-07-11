@@ -138,6 +138,7 @@ hover
 fill
 scroll
 wait
+wait_for_element
 zoom
 highlight
 draw_box
