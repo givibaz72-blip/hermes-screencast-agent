@@ -135,3 +135,29 @@ def test_assert_url_contains_requires_url():
 
     with pytest.raises(ValueError, match="assert_url_contains requires url"):
         script.validate()
+
+
+def test_wait_for_element_requires_selector():
+    script = DemoScript(
+        title="Broken script",
+        steps=[DemoStep(action=DemoActionType.WAIT_FOR_ELEMENT)],
+    )
+
+    with pytest.raises(ValueError, match="wait_for_element requires selector"):
+        script.validate()
+
+
+def test_wait_for_element_rejects_negative_seconds():
+    script = DemoScript(
+        title="Broken script",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_ELEMENT,
+                selector="#hero",
+                seconds=-1,
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="wait_for_element requires non-negative seconds"):
+        script.validate()

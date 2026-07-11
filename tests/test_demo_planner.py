@@ -143,3 +143,21 @@ def test_demo_dry_run_planner_summarizes_assert_url_contains() -> None:
 
     assert plan.steps[0].summary == "Assert URL contains: /dashboard"
     assert plan.steps[0].details == {"url": "/dashboard"}
+
+
+def test_demo_dry_run_planner_summarizes_wait_for_element() -> None:
+    script = DemoScript(
+        title="Wait plan",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_ELEMENT,
+                selector="#hero",
+                seconds=2,
+            ),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Wait for element: #hero for up to 2 seconds"
+    assert plan.steps[0].details == {"selector": "#hero", "seconds": 2}

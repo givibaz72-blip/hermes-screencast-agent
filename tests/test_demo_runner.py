@@ -28,6 +28,9 @@ class RecordingDemoExecutor:
     def wait(self, seconds: float) -> None:
         self.calls.append(("wait", (seconds,)))
 
+    def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
+        self.calls.append(("wait_for_element", (selector, timeout_seconds)))
+
     def zoom(self, selector: str) -> None:
         self.calls.append(("zoom", (selector,)))
 
@@ -167,4 +170,28 @@ def test_demo_runner_executes_assert_url_contains() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("assert_url_contains", ("/dashboard",)),
+    ]
+
+
+def test_demo_runner_executes_wait_for_element() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Wait runner test",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_ELEMENT,
+                selector="#hero",
+                seconds=2,
+            ),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("wait_for_element", ("#hero", 2)),
     ]

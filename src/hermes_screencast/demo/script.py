@@ -12,6 +12,7 @@ class DemoActionType(str, Enum):
     FILL = "fill"
     SCROLL = "scroll"
     WAIT = "wait"
+    WAIT_FOR_ELEMENT = "wait_for_element"
 
     ZOOM = "zoom"
     HIGHLIGHT = "highlight"
@@ -84,6 +85,12 @@ class DemoScript:
         if step.action == DemoActionType.WAIT:
             if step.seconds is None or step.seconds < 0:
                 raise ValueError(f"Step {index}: wait requires non-negative seconds")
+
+        if step.action == DemoActionType.WAIT_FOR_ELEMENT:
+            if not step.selector:
+                raise ValueError(f"Step {index}: wait_for_element requires selector")
+            if step.seconds is not None and step.seconds < 0:
+                raise ValueError(f"Step {index}: wait_for_element requires non-negative seconds")
 
         if step.action == DemoActionType.SCROLL:
             if step.value is None:

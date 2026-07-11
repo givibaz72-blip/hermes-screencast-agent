@@ -1,7 +1,13 @@
 from __future__ import annotations
 
+import time
+
 from dataclasses import dataclass
 from typing import Protocol
+
+
+DEFAULT_WAIT_FOR_ELEMENT_SECONDS = 5.0
+WAIT_FOR_ELEMENT_POLL_SECONDS = 0.1
 
 
 class BrowserRuntimeLike(Protocol):
@@ -196,29 +202,52 @@ class BrowserDemoExecutor:
             raise AssertionError(f"Text not visible: {text}")
 
     def assert_element_visible(self, selector: str) -> None:
-        result = self.runtime.evaluate(
-            f"""
-            (() => {{
-                const element = document.querySelector({selector!r});
-                if (!element) {{
-                    return false;
-                }}
-
-                const rect = element.getBoundingClientRect();
-                const style = window.getComputedStyle(element);
-
-                return (
-                    rect.width > 0 &&
-                    rect.height > 0 &&
-                    style.visibility !== "hidden" &&
-                    style.display !== "none"
-                );
-            }})();
-            """
-        )
-
-        if not result:
+        if not self._is_element_visible(selector):
             raise AssertionError(f"Element not visible: {selector}")
+
+    def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
+        timeout = (
+            DEFAULT_WAIT_FOR_ELEMENT_SECONDS
+            if timeout_seconds is None
+            else timeout_seconds
+        )
+        deadline = time.monotonic() + timeout
+
+        while True:
+            if self._is_element_visible(selector):
+                return
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+
+            self.runtime.wait(min(WAIT_FOR_ELEMENT_POLL_SECONDS, remaining))
+
+        raise TimeoutError(f"Timed out waiting for element: {selector}")
+
+    def _is_element_visible(self, selector: str) -> bool:
+        return bool(
+            self.runtime.evaluate(
+                f"""
+                (() => {{
+                    const element = document.querySelector({selector!r});
+                    if (!element) {{
+                        return false;
+                    }}
+
+                    const rect = element.getBoundingClientRect();
+                    const style = window.getComputedStyle(element);
+
+                    return (
+                        rect.width > 0 &&
+                        rect.height > 0 &&
+                        style.visibility !== "hidden" &&
+                        style.display !== "none"
+                    );
+                }})();
+                """
+            )
+        )
 
     def assert_url_contains(self, url_part: str) -> None:
         result = self.runtime.evaluate(

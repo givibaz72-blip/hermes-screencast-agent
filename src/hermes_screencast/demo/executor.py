@@ -24,6 +24,9 @@ class DemoExecutor(Protocol):
     def wait(self, seconds: float) -> None:
         ...
 
+    def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
+        ...
+
     def zoom(self, selector: str) -> None:
         ...
 
