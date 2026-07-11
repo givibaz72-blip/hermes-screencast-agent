@@ -34,6 +34,9 @@ class RecordingDemoExecutor:
     def wait_for_url_contains(self, url_part: str, timeout_seconds: float | None = None) -> None:
         self.calls.append(("wait_for_url_contains", (url_part, timeout_seconds)))
 
+    def wait_for_text_visible(self, text: str, timeout_seconds: float | None = None) -> None:
+        self.calls.append(("wait_for_text_visible", (text, timeout_seconds)))
+
     def zoom(self, selector: str) -> None:
         self.calls.append(("zoom", (selector,)))
 
@@ -221,4 +224,28 @@ def test_demo_runner_executes_wait_for_url_contains() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("wait_for_url_contains", ("/dashboard", 2)),
+    ]
+
+
+def test_demo_runner_executes_wait_for_text_visible() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Wait text runner test",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_TEXT_VISIBLE,
+                text="Welcome",
+                seconds=2,
+            ),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("wait_for_text_visible", ("Welcome", 2)),
     ]
