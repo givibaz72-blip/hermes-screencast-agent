@@ -299,3 +299,30 @@ def test_browser_demo_executor_wait_for_navigation_idle_uses_default_timeout() -
     assert runtime.calls == [
         ("wait", (1.0,)),
     ]
+
+
+def test_browser_demo_executor_assert_not_text_visible_passes_when_text_is_absent() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.assert_not_text_visible("Error")
+
+    assert runtime.calls == [
+        ("evaluate", (
+            """
+                (() => {
+                    const expectedText = 'Error';
+                    const bodyText = document.body ? document.body.innerText : "";
+                    return bodyText.includes(expectedText);
+                })();
+                """,
+        )),
+    ]
+
+
+def test_browser_demo_executor_assert_not_text_visible_fails_when_text_is_visible() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(AssertionError, match="Text unexpectedly visible: Error"):
+        executor.assert_not_text_visible("Error")

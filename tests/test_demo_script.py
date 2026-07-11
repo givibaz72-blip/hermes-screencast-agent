@@ -228,3 +228,17 @@ def test_wait_for_navigation_idle_rejects_negative_seconds():
 
     with pytest.raises(ValueError, match="wait_for_navigation_idle requires non-negative seconds"):
         script.validate()
+
+
+def test_assert_not_text_visible_requires_text():
+    script = DemoScript(
+        title="Broken script",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_TEXT_VISIBLE,
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="assert_not_text_visible requires text"):
+        script.validate()

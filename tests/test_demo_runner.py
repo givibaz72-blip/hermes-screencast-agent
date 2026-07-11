@@ -61,6 +61,9 @@ class RecordingDemoExecutor:
     def assert_text_visible(self, text: str) -> None:
         self.calls.append(("assert_text_visible", (text,)))
 
+    def assert_not_text_visible(self, text: str) -> None:
+        self.calls.append(("assert_not_text_visible", (text,)))
+
     def assert_element_visible(self, selector: str) -> None:
         self.calls.append(("assert_element_visible", (selector,)))
 
@@ -274,4 +277,27 @@ def test_demo_runner_executes_wait_for_navigation_idle() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("wait_for_navigation_idle", (2,)),
+    ]
+
+
+def test_demo_runner_executes_assert_not_text_visible() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Negative assertion runner test",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_TEXT_VISIBLE,
+                text="Error",
+            ),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("assert_not_text_visible", ("Error",)),
     ]

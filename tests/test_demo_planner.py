@@ -214,3 +214,20 @@ def test_demo_dry_run_planner_summarizes_wait_for_navigation_idle() -> None:
 
     assert plan.steps[0].summary == "Wait for navigation idle for up to 2 seconds"
     assert plan.steps[0].details == {"seconds": 2}
+
+
+def test_demo_dry_run_planner_summarizes_assert_not_text_visible() -> None:
+    script = DemoScript(
+        title="Negative assertion plan",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_TEXT_VISIBLE,
+                text="Error",
+            ),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Assert text not visible: Error"
+    assert plan.steps[0].details == {"text": "Error"}
