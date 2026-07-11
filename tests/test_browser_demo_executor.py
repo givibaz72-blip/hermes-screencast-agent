@@ -221,3 +221,31 @@ def test_browser_demo_executor_wait_for_element_fails_when_timeout_expires() -> 
 
     assert name == "evaluate"
     assert "document.querySelector('#missing')" in args[0]
+
+
+def test_browser_demo_executor_wait_for_url_contains_returns_when_url_matches() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_url_contains("/dashboard", timeout_seconds=2)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "window.location.href.includes(expectedUrlPart)" in args[0]
+    assert "/dashboard" in args[0]
+
+
+def test_browser_demo_executor_wait_for_url_contains_fails_when_timeout_expires() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(TimeoutError, match="Timed out waiting for URL to contain: /settings"):
+        executor.wait_for_url_contains("/settings", timeout_seconds=0)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "/settings" in args[0]

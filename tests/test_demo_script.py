@@ -161,3 +161,29 @@ def test_wait_for_element_rejects_negative_seconds():
 
     with pytest.raises(ValueError, match="wait_for_element requires non-negative seconds"):
         script.validate()
+
+
+def test_wait_for_url_contains_requires_url():
+    script = DemoScript(
+        title="Broken script",
+        steps=[DemoStep(action=DemoActionType.WAIT_FOR_URL_CONTAINS)],
+    )
+
+    with pytest.raises(ValueError, match="wait_for_url_contains requires url"):
+        script.validate()
+
+
+def test_wait_for_url_contains_rejects_negative_seconds():
+    script = DemoScript(
+        title="Broken script",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_URL_CONTAINS,
+                url="/dashboard",
+                seconds=-1,
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="wait_for_url_contains requires non-negative seconds"):
+        script.validate()

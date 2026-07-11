@@ -8,6 +8,8 @@ from typing import Protocol
 
 DEFAULT_WAIT_FOR_ELEMENT_SECONDS = 5.0
 WAIT_FOR_ELEMENT_POLL_SECONDS = 0.1
+DEFAULT_WAIT_FOR_URL_SECONDS = 5.0
+WAIT_FOR_URL_POLL_SECONDS = 0.1
 
 
 class BrowserRuntimeLike(Protocol):
@@ -250,14 +252,33 @@ class BrowserDemoExecutor:
         )
 
     def assert_url_contains(self, url_part: str) -> None:
-        result = self.runtime.evaluate(
-            f"""
-            (() => {{
-                const expectedUrlPart = {url_part!r};
-                return window.location.href.includes(expectedUrlPart);
-            }})();
-            """
-        )
-
-        if not result:
+        if not self._url_contains(url_part):
             raise AssertionError(f"URL does not contain: {url_part}")
+
+    def wait_for_url_contains(self, url_part: str, timeout_seconds: float | None = None) -> None:
+        timeout = DEFAULT_WAIT_FOR_URL_SECONDS if timeout_seconds is None else timeout_seconds
+        deadline = time.monotonic() + timeout
+
+        while True:
+            if self._url_contains(url_part):
+                return
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+
+            self.runtime.wait(min(WAIT_FOR_URL_POLL_SECONDS, remaining))
+
+        raise TimeoutError(f"Timed out waiting for URL to contain: {url_part}")
+
+    def _url_contains(self, url_part: str) -> bool:
+        return bool(
+            self.runtime.evaluate(
+                f"""
+                (() => {{
+                    const expectedUrlPart = {url_part!r};
+                    return window.location.href.includes(expectedUrlPart);
+                }})();
+                """
+            )
+        )
