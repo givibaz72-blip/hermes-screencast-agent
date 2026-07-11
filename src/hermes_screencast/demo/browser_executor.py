@@ -234,6 +234,10 @@ class BrowserDemoExecutor:
         if not self._is_element_visible(selector):
             raise AssertionError(f"Element not visible: {selector}")
 
+    def assert_not_element_visible(self, selector: str) -> None:
+        if self._is_element_visible(selector):
+            raise AssertionError(f"Element unexpectedly visible: {selector}")
+
     def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
         timeout = (
             DEFAULT_WAIT_FOR_ELEMENT_SECONDS

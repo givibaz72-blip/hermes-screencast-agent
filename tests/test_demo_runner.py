@@ -67,6 +67,9 @@ class RecordingDemoExecutor:
     def assert_element_visible(self, selector: str) -> None:
         self.calls.append(("assert_element_visible", (selector,)))
 
+    def assert_not_element_visible(self, selector: str) -> None:
+        self.calls.append(("assert_not_element_visible", (selector,)))
+
     def assert_url_contains(self, url_part: str) -> None:
         self.calls.append(("assert_url_contains", (url_part,)))
 
@@ -300,4 +303,27 @@ def test_demo_runner_executes_assert_not_text_visible() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("assert_not_text_visible", ("Error",)),
+    ]
+
+
+def test_demo_runner_executes_assert_not_element_visible() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Negative element assertion runner test",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_ELEMENT_VISIBLE,
+                selector="#spinner",
+            ),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("assert_not_element_visible", ("#spinner",)),
     ]

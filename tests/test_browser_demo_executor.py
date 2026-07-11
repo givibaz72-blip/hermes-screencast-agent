@@ -326,3 +326,20 @@ def test_browser_demo_executor_assert_not_text_visible_fails_when_text_is_visibl
 
     with pytest.raises(AssertionError, match="Text unexpectedly visible: Error"):
         executor.assert_not_text_visible("Error")
+
+
+def test_browser_demo_executor_assert_not_element_visible_passes_when_element_is_absent() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.assert_not_element_visible("#spinner")
+
+    assert runtime.calls[0][0] == "evaluate"
+
+
+def test_browser_demo_executor_assert_not_element_visible_fails_when_element_is_visible() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(AssertionError, match="Element unexpectedly visible: #spinner"):
+        executor.assert_not_element_visible("#spinner")

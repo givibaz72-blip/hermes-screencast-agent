@@ -242,3 +242,17 @@ def test_assert_not_text_visible_requires_text():
 
     with pytest.raises(ValueError, match="assert_not_text_visible requires text"):
         script.validate()
+
+
+def test_assert_not_element_visible_requires_selector():
+    script = DemoScript(
+        title="Broken script",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_ELEMENT_VISIBLE,
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError, match="assert_not_element_visible requires selector"):
+        script.validate()

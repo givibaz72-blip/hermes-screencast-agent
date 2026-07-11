@@ -161,6 +161,9 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
             return f"Assert element visible: {step.selector}"
 
+        if step.action == DemoActionType.ASSERT_NOT_ELEMENT_VISIBLE:
+            return f"Assert element not visible: {step.selector}"
+
         if step.action == DemoActionType.ASSERT_URL_CONTAINS:
             return f"Assert URL contains: {step.url}"
 
