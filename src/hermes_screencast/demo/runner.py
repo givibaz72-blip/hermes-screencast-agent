@@ -65,6 +65,8 @@ class DemoRunner:
             self._auth_check()
         elif step.action == DemoActionType.ASSERT_TEXT_VISIBLE:
             self._assert_text_visible(step)
+        elif step.action == DemoActionType.ASSERT_NOT_TEXT_VISIBLE:
+            self._assert_not_text_visible(step)
         elif step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
             self._assert_element_visible(step)
         elif step.action == DemoActionType.ASSERT_URL_CONTAINS:
@@ -138,6 +140,10 @@ class DemoRunner:
     def _assert_text_visible(self, step: DemoStep) -> None:
         assert step.text is not None
         self.executor.assert_text_visible(step.text)
+
+    def _assert_not_text_visible(self, step: DemoStep) -> None:
+        assert step.text is not None
+        self.executor.assert_not_text_visible(step.text)
 
     def _assert_element_visible(self, step: DemoStep) -> None:
         assert step.selector is not None

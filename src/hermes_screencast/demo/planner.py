@@ -155,6 +155,9 @@ class DemoDryRunPlanner:
         if step.action == DemoActionType.ASSERT_TEXT_VISIBLE:
             return f"Assert text visible: {step.text}"
 
+        if step.action == DemoActionType.ASSERT_NOT_TEXT_VISIBLE:
+            return f"Assert text not visible: {step.text}"
+
         if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE:
             return f"Assert element visible: {step.selector}"
 

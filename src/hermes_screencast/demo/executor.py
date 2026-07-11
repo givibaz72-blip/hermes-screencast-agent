@@ -57,6 +57,9 @@ class DemoExecutor(Protocol):
     def assert_text_visible(self, text: str) -> None:
         ...
 
+    def assert_not_text_visible(self, text: str) -> None:
+        ...
+
     def assert_element_visible(self, selector: str) -> None:
         ...
 

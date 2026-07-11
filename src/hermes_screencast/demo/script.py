@@ -25,6 +25,7 @@ class DemoActionType(str, Enum):
     NARRATION = "narration"
     AUTH_CHECK = "auth_check"
     ASSERT_TEXT_VISIBLE = "assert_text_visible"
+    ASSERT_NOT_TEXT_VISIBLE = "assert_not_text_visible"
     ASSERT_ELEMENT_VISIBLE = "assert_element_visible"
     ASSERT_URL_CONTAINS = "assert_url_contains"
 
@@ -125,6 +126,9 @@ class DemoScript:
 
         if step.action == DemoActionType.ASSERT_TEXT_VISIBLE and step.text is None:
             raise ValueError(f"Step {index}: assert_text_visible requires text")
+
+        if step.action == DemoActionType.ASSERT_NOT_TEXT_VISIBLE and step.text is None:
+            raise ValueError(f"Step {index}: assert_not_text_visible requires text")
 
         if step.action == DemoActionType.ASSERT_ELEMENT_VISIBLE and not step.selector:
             raise ValueError(f"Step {index}: assert_element_visible requires selector")

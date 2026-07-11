@@ -204,6 +204,10 @@ class BrowserDemoExecutor:
         if not self._is_text_visible(text):
             raise AssertionError(f"Text not visible: {text}")
 
+    def assert_not_text_visible(self, text: str) -> None:
+        if self._is_text_visible(text):
+            raise AssertionError(f"Text unexpectedly visible: {text}")
+
     def wait_for_text_visible(self, text: str, timeout_seconds: float | None = None) -> None:
         timeout = DEFAULT_WAIT_FOR_TEXT_SECONDS if timeout_seconds is None else timeout_seconds
         self._wait_until(
