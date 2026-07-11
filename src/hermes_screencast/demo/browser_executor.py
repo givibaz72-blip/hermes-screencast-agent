@@ -197,19 +197,12 @@ class BrowserDemoExecutor:
 
     def wait_for_text_visible(self, text: str, timeout_seconds: float | None = None) -> None:
         timeout = DEFAULT_WAIT_FOR_TEXT_SECONDS if timeout_seconds is None else timeout_seconds
-        deadline = time.monotonic() + timeout
-
-        while True:
-            if self._is_text_visible(text):
-                return
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-
-            self.runtime.wait(min(WAIT_FOR_TEXT_POLL_SECONDS, remaining))
-
-        raise TimeoutError(f"Timed out waiting for text: {text}")
+        self._wait_until(
+            condition=lambda: self._is_text_visible(text),
+            timeout_seconds=timeout,
+            poll_seconds=WAIT_FOR_TEXT_POLL_SECONDS,
+            timeout_error=f"Timed out waiting for text: {text}",
+        )
 
     def _is_text_visible(self, text: str) -> bool:
         return bool(
@@ -234,19 +227,12 @@ class BrowserDemoExecutor:
             if timeout_seconds is None
             else timeout_seconds
         )
-        deadline = time.monotonic() + timeout
-
-        while True:
-            if self._is_element_visible(selector):
-                return
-
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-
-            self.runtime.wait(min(WAIT_FOR_ELEMENT_POLL_SECONDS, remaining))
-
-        raise TimeoutError(f"Timed out waiting for element: {selector}")
+        self._wait_until(
+            condition=lambda: self._is_element_visible(selector),
+            timeout_seconds=timeout,
+            poll_seconds=WAIT_FOR_ELEMENT_POLL_SECONDS,
+            timeout_error=f"Timed out waiting for element: {selector}",
+        )
 
     def _is_element_visible(self, selector: str) -> bool:
         return bool(
@@ -278,19 +264,33 @@ class BrowserDemoExecutor:
 
     def wait_for_url_contains(self, url_part: str, timeout_seconds: float | None = None) -> None:
         timeout = DEFAULT_WAIT_FOR_URL_SECONDS if timeout_seconds is None else timeout_seconds
-        deadline = time.monotonic() + timeout
+        self._wait_until(
+            condition=lambda: self._url_contains(url_part),
+            timeout_seconds=timeout,
+            poll_seconds=WAIT_FOR_URL_POLL_SECONDS,
+            timeout_error=f"Timed out waiting for URL to contain: {url_part}",
+        )
+
+    def _wait_until(
+        self,
+        condition,
+        timeout_seconds: float,
+        poll_seconds: float,
+        timeout_error: str,
+    ) -> None:
+        deadline = time.monotonic() + timeout_seconds
 
         while True:
-            if self._url_contains(url_part):
+            if condition():
                 return
 
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
 
-            self.runtime.wait(min(WAIT_FOR_URL_POLL_SECONDS, remaining))
+            self.runtime.wait(min(poll_seconds, remaining))
 
-        raise TimeoutError(f"Timed out waiting for URL to contain: {url_part}")
+        raise TimeoutError(timeout_error)
 
     def _url_contains(self, url_part: str) -> bool:
         return bool(
