@@ -231,3 +231,20 @@ def test_demo_dry_run_planner_summarizes_assert_not_text_visible() -> None:
 
     assert plan.steps[0].summary == "Assert text not visible: Error"
     assert plan.steps[0].details == {"text": "Error"}
+
+
+def test_demo_dry_run_planner_summarizes_assert_not_element_visible() -> None:
+    script = DemoScript(
+        title="Negative element assertion plan",
+        steps=[
+            DemoStep(
+                action=DemoActionType.ASSERT_NOT_ELEMENT_VISIBLE,
+                selector="#spinner",
+            ),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == "Assert element not visible: #spinner"
+    assert plan.steps[0].details == {"selector": "#spinner"}
