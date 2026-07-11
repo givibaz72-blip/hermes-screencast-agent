@@ -277,3 +277,25 @@ def test_browser_demo_executor_wait_for_text_visible_fails_when_timeout_expires(
 
     assert name == "evaluate"
     assert "Missing" in args[0]
+
+
+def test_browser_demo_executor_wait_for_navigation_idle_uses_timeout() -> None:
+    runtime = FakeBrowserRuntime()
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_navigation_idle(timeout_seconds=2)
+
+    assert runtime.calls == [
+        ("wait", (2,)),
+    ]
+
+
+def test_browser_demo_executor_wait_for_navigation_idle_uses_default_timeout() -> None:
+    runtime = FakeBrowserRuntime()
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_navigation_idle()
+
+    assert runtime.calls == [
+        ("wait", (1.0,)),
+    ]

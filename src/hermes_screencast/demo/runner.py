@@ -49,6 +49,8 @@ class DemoRunner:
             self._wait_for_url_contains(step)
         elif step.action == DemoActionType.WAIT_FOR_TEXT_VISIBLE:
             self._wait_for_text_visible(step)
+        elif step.action == DemoActionType.WAIT_FOR_NAVIGATION_IDLE:
+            self._wait_for_navigation_idle(step)
         elif step.action == DemoActionType.ZOOM:
             self._zoom(step)
         elif step.action == DemoActionType.HIGHLIGHT:
@@ -106,6 +108,9 @@ class DemoRunner:
     def _wait_for_text_visible(self, step: DemoStep) -> None:
         assert step.text is not None
         self.executor.wait_for_text_visible(step.text, step.seconds)
+
+    def _wait_for_navigation_idle(self, step: DemoStep) -> None:
+        self.executor.wait_for_navigation_idle(step.seconds)
 
     def _zoom(self, step: DemoStep) -> None:
         assert step.selector is not None
