@@ -217,6 +217,19 @@ class BrowserDemoExecutor:
             timeout_error=f"Timed out waiting for text: {text}",
         )
 
+    def wait_for_not_text_visible(
+        self,
+        text: str,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        timeout = DEFAULT_WAIT_FOR_TEXT_SECONDS if timeout_seconds is None else timeout_seconds
+        self._wait_until(
+            condition=lambda: not self._is_text_visible(text),
+            timeout_seconds=timeout,
+            poll_seconds=WAIT_FOR_TEXT_POLL_SECONDS,
+            timeout_error=f"Timed out waiting for text to disappear: {text}",
+        )
+
     def _is_text_visible(self, text: str) -> bool:
         return bool(
             self.runtime.evaluate(

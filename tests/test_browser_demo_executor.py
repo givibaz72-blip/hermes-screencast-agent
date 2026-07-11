@@ -279,6 +279,37 @@ def test_browser_demo_executor_wait_for_text_visible_fails_when_timeout_expires(
     assert "Missing" in args[0]
 
 
+def test_browser_demo_executor_wait_for_not_text_visible_returns_when_text_is_absent() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_not_text_visible("Loading", timeout_seconds=2)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "bodyText.includes(expectedText)" in args[0]
+    assert "Loading" in args[0]
+
+
+def test_browser_demo_executor_wait_for_not_text_visible_fails_when_timeout_expires() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(
+        TimeoutError,
+        match="Timed out waiting for text to disappear: Loading",
+    ):
+        executor.wait_for_not_text_visible("Loading", timeout_seconds=0)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "Loading" in args[0]
+
+
 def test_browser_demo_executor_wait_for_navigation_idle_uses_timeout() -> None:
     runtime = FakeBrowserRuntime()
     executor = BrowserDemoExecutor(runtime=runtime)
