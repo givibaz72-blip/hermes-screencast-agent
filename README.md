@@ -139,6 +139,7 @@ fill
 scroll
 wait
 wait_for_element
+wait_for_url_contains
 zoom
 highlight
 draw_box
