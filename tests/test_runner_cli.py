@@ -246,7 +246,7 @@ def test_project_preview_parser():
 def test_project_render_parser():
     args = build_parser().parse_args([
         "project-render", "/tmp/demo.hermes", "--output", "/tmp/final.mp4",
-        "--allow-unrendered", "--dry-run", "--encoder", "qsv", "--fade-in", "0.25", "--fade-out", "0.5",
+        "--allow-unrendered", "--dry-run", "--encoder", "qsv", "--fade-in", "0.25", "--fade-out", "0.5", "--normalize-audio",
     ])
     assert args.command == "project-render"
     assert args.output == "/tmp/final.mp4"
@@ -255,3 +255,4 @@ def test_project_render_parser():
     assert args.encoder == "qsv"
     assert args.fade_in == 0.25
     assert args.fade_out == 0.5
+    assert args.normalize_audio is True

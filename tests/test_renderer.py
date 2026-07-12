@@ -227,6 +227,16 @@ def test_render_rejects_fades_longer_than_output(tmp_path) -> None:
         build_render_plan(root, tmp_path / "output.mp4", fade_in_seconds=5, fade_out_seconds=4)
 
 
+def test_render_normalizes_audio_before_final_fades(tmp_path) -> None:
+    root = create_project(tmp_path)
+    plan = build_render_plan(root, tmp_path / "output.mp4", audio_probe=lambda path: True, normalize_audio=True, fade_out_seconds=0.5)
+    graph = plan.filter_complex
+    assert "[outa]loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000[audionorm]" in graph
+    assert "[audionorm]afade=t=out:st=7.500000:d=0.500000[fadeda]" in graph
+    assert graph.index("loudnorm=") < graph.index("afade=")
+    assert plan.normalize_audio is True
+
+
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
     root = create_project(tmp_path)
     output = tmp_path / "output.mp4"

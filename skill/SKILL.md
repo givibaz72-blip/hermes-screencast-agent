@@ -149,6 +149,9 @@ Before recording, determine:
     Add short `--fade-in` and `--fade-out` values only when opening and closing
     polish is appropriate for the requested deliverable.
 
+    Use `--normalize-audio` when source loudness is uneven or a consistent
+    presentation level is required.
+
     Completed click anchors automatically receive a short vector feedback ring;
     keep cursor motion enabled when visible interaction feedback is expected.
 17. Return the final absolute MP4, event-log, project, and preview paths.

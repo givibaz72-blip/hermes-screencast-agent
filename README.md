@@ -318,6 +318,9 @@ backend explicitly.
 Optional `--fade-in` and `--fade-out` durations add synchronized video and
 audio fades after timeline edits, expressed in seconds.
 
+Use `--normalize-audio` to target -16 LUFS integrated loudness, 11 LU loudness
+range, and -1.5 dB true peak before final audio fades.
+
 Record the maintained public example:
 
 ```bash
