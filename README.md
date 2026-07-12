@@ -351,6 +351,8 @@ hermes-screencast project-editor /tmp/product.hermes
 The server binds to `127.0.0.1` only. Its initial UI visualizes all timeline
 tracks, previews the composition background, and saves background edits through
 the validated ETag API. It never exposes source video or event-log assets.
+Timeline segments can be selected to edit validated start/end times before
+saving the project.
 
 Record the maintained public example:
 
