@@ -29,6 +29,7 @@ class RenderPlan:
     filter_complex: str
     unsupported_tracks: tuple[str, ...]
     estimated_duration_seconds: float
+    has_audio: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -36,6 +37,7 @@ class RenderPlan:
             "command": list(self.command), "filter_complex": self.filter_complex,
             "unsupported_tracks": list(self.unsupported_tracks),
             "estimated_duration_seconds": self.estimated_duration_seconds,
+            "has_audio": self.has_audio,
         }
 
 
@@ -45,6 +47,7 @@ def build_render_plan(
     *,
     allow_unrendered: bool = False,
     ffmpeg: str = "ffmpeg",
+    audio_probe: Callable[[Path], bool] | None = None,
 ) -> RenderPlan:
     root = Path(project_directory).expanduser().resolve()
     project = validate_hermes_project(root)
@@ -107,13 +110,24 @@ def build_render_plan(
         source_width,
         source_height,
     )
-    command = (
+    has_audio = (audio_probe or _has_audio_stream)(source)
+    if has_audio:
+        graph += ";" + _audio_filter_graph(time_track, source_duration)
+    command_parts = [
         ffmpeg, "-y", "-nostdin", "-loglevel", "error", "-i", str(source),
-        "-filter_complex", graph, "-map", "[outv]", "-an", "-c:v", "libx264",
+        "-filter_complex", graph, "-map", "[outv]",
+    ]
+    if has_audio:
+        command_parts.extend(["-map", "[outa]", "-c:a", "aac", "-b:a", "192k"])
+    else:
+        command_parts.append("-an")
+    command_parts.extend([
+        "-c:v", "libx264",
         "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
         "-movflags", "+faststart", str(output),
-    )
-    return RenderPlan(source, output, command, graph, unsupported, estimated)
+    ])
+    command = tuple(command_parts)
+    return RenderPlan(source, output, command, graph, unsupported, estimated, has_audio)
 
 
 def render_hermes_project(
@@ -364,6 +378,50 @@ def _append_time_filters(
         labels.append(f"[{label}]")
     filters.append(f"{''.join(labels)}concat=n={len(labels)}:v=1:a=0[timed]")
     return "timed"
+
+
+def _audio_filter_graph(
+    track: dict[str, Any] | None, duration: float
+) -> str:
+    if track is None or not track["segments"]:
+        return "[0:a]asetpts=PTS-STARTPTS[outa]"
+    pieces: list[tuple[float, float, float]] = []
+    cursor = 0.0
+    for segment in track["segments"]:
+        start, end = float(segment["start_seconds"]), float(segment["end_seconds"])
+        if start > cursor:
+            pieces.append((cursor, start, 1.0))
+        if segment["mode"] == "speed":
+            pieces.append((start, end, float(segment["speed_factor"])))
+        cursor = end
+    if cursor < duration:
+        pieces.append((cursor, duration, 1.0))
+    filters = []
+    labels = []
+    for index, (start, end, speed) in enumerate(pieces):
+        label = f"apart{index}"
+        tempo = f",atempo={speed:.6f}" if speed != 1 else ""
+        filters.append(
+            f"[0:a]atrim=start={start:.6f}:end={end:.6f},"
+            f"asetpts=PTS-STARTPTS{tempo}[{label}]"
+        )
+        labels.append(f"[{label}]")
+    filters.append(f"{''.join(labels)}concat=n={len(labels)}:v=0:a=1[outa]")
+    return ";".join(filters)
+
+
+def _has_audio_stream(source: Path) -> bool:
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error", "-select_streams", "a:0",
+                "-show_entries", "stream=index", "-of", "csv=p=0", str(source),
+            ],
+            capture_output=True, text=True, check=False,
+        )
+    except FileNotFoundError:
+        return False
+    return result.returncode == 0 and bool(result.stdout.strip())
 
 
 def _append_camera_filter(
