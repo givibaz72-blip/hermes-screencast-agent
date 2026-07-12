@@ -39,6 +39,7 @@ class RenderPlan:
     video_encoder: str
     fade_in_seconds: float
     fade_out_seconds: float
+    normalize_audio: bool
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -50,6 +51,7 @@ class RenderPlan:
             "video_encoder": self.video_encoder,
             "fade_in_seconds": self.fade_in_seconds,
             "fade_out_seconds": self.fade_out_seconds,
+            "normalize_audio": self.normalize_audio,
         }
 
 
@@ -64,6 +66,7 @@ def build_render_plan(
     encoder_probe: Callable[[str], bool] | None = None,
     fade_in_seconds: float = 0.0,
     fade_out_seconds: float = 0.0,
+    normalize_audio: bool = False,
 ) -> RenderPlan:
     root = Path(project_directory).expanduser().resolve()
     project = validate_hermes_project(root)
@@ -132,12 +135,15 @@ def build_render_plan(
     if has_audio:
         graph += ";" + _audio_filter_graph(time_track, source_duration)
     video_label, audio_label = "outv", "outa"
+    if has_audio and normalize_audio:
+        graph += ";[outa]loudnorm=I=-16:LRA=11:TP=-1.5,aresample=48000[audionorm]"
+        audio_label = "audionorm"
     if fade_in_seconds or fade_out_seconds:
         video_label = "fadedv"
         graph += ";" + _fade_filter_graph("outv", video_label, estimated, fade_in_seconds, fade_out_seconds, audio=False)
         if has_audio:
+            graph += ";" + _fade_filter_graph(audio_label, "fadeda", estimated, fade_in_seconds, fade_out_seconds, audio=True)
             audio_label = "fadeda"
-            graph += ";" + _fade_filter_graph("outa", audio_label, estimated, fade_in_seconds, fade_out_seconds, audio=True)
     command_parts = [
         ffmpeg, "-y", "-nostdin", "-loglevel", "error", "-i", str(source),
         "-filter_complex", graph, "-map", f"[{video_label}]",
@@ -151,7 +157,7 @@ def build_render_plan(
     command = tuple(command_parts)
     return RenderPlan(
         source, output, command, graph, unsupported, estimated, has_audio,
-        selected_encoder, fade_in_seconds, fade_out_seconds,
+        selected_encoder, fade_in_seconds, fade_out_seconds, normalize_audio,
     )
 
 
@@ -163,6 +169,7 @@ def render_hermes_project(
     video_encoder: str = "auto",
     fade_in_seconds: float = 0.0,
     fade_out_seconds: float = 0.0,
+    normalize_audio: bool = False,
     runner: Callable[..., Any] = subprocess.run,
     verifier: Callable[[Path], Path] = verify_mp4,
 ) -> Path:
@@ -170,6 +177,7 @@ def render_hermes_project(
         project_directory, output_file, allow_unrendered=allow_unrendered,
         video_encoder=video_encoder,
         fade_in_seconds=fade_in_seconds, fade_out_seconds=fade_out_seconds,
+        normalize_audio=normalize_audio,
     )
     plan.output.parent.mkdir(parents=True, exist_ok=True)
     try:
