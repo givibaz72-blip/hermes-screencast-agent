@@ -305,6 +305,12 @@ audio stream, the renderer applies the same trim, cut, and speed timeline to
 audio and video, then exports synchronized AAC audio. Silent sources remain
 silent without requiring a separate option.
 
+Rendering uses `--encoder auto` by default. Hermes benchmarks libx264, NVENC,
+Quick Sync, and AMD AMF with a short real encode, selects hardware only when it
+beats software by a useful margin, and caches the result for the process. Use
+`--encoder software` for deterministic CPU-only output or select a specific
+backend explicitly.
+
 Record the maintained public example:
 
 ```bash

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import hermes_screencast.renderer as renderer_module
 from hermes_screencast.annotations import add_project_annotation
 from hermes_screencast.auto_edit import apply_auto_edit
 from hermes_screencast.auto_zoom import apply_auto_zoom
@@ -163,6 +164,50 @@ def test_render_keeps_audio_synchronized_with_time_edits(tmp_path) -> None:
     assert "[outa]" in plan.command
     assert "aac" in plan.command
     assert plan.has_audio is True
+
+
+def test_render_auto_selects_first_available_hardware_encoder(tmp_path) -> None:
+    root = create_project(tmp_path)
+    checked = []
+
+    def probe(encoder):
+        checked.append(encoder)
+        return encoder == "h264_qsv"
+
+    plan = build_render_plan(
+        root, tmp_path / "output.mp4", video_encoder="auto",
+        encoder_probe=probe,
+    )
+    assert checked == ["h264_nvenc", "h264_qsv"]
+    assert plan.video_encoder == "h264_qsv"
+    assert "-global_quality" in plan.command
+
+
+def test_render_auto_falls_back_to_software_encoder(tmp_path) -> None:
+    root = create_project(tmp_path)
+    plan = build_render_plan(
+        root, tmp_path / "output.mp4", video_encoder="auto",
+        encoder_probe=lambda encoder: False,
+    )
+    assert plan.video_encoder == "libx264"
+    assert "-crf" in plan.command
+
+
+def test_render_auto_benchmark_requires_meaningful_speedup(
+    tmp_path, monkeypatch
+) -> None:
+    root = create_project(tmp_path)
+    scores = {
+        "libx264": 1.0, "h264_nvenc": 0.95,
+        "h264_qsv": 0.7, "h264_amf": float("inf"),
+    }
+    monkeypatch.setattr(
+        renderer_module, "_encoder_benchmark", lambda encoder: scores[encoder]
+    )
+    plan = build_render_plan(
+        root, tmp_path / "output.mp4", video_encoder="auto"
+    )
+    assert plan.video_encoder == "h264_qsv"
 
 
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
