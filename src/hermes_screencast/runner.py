@@ -708,7 +708,8 @@ def build_parser() -> argparse.ArgumentParser:
     project_polish.add_argument("--output", required=True)
     project_polish.add_argument("--preview")
     project_polish.add_argument(
-        "--preset", default="studio", choices=available_framing_presets()
+        "--preset", default="studio",
+        choices=("keep", *available_framing_presets()),
     )
     project_polish.add_argument(
         "--encoder", default="auto",

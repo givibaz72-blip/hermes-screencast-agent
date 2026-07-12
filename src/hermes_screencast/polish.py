@@ -48,7 +48,8 @@ def polish_hermes_project(
         Path(preview_file).expanduser().resolve()
         if preview_file is not None else output.with_suffix(".preview.html")
     )
-    apply_framing_preset(root, preset=preset)
+    if preset != "keep":
+        apply_framing_preset(root, preset=preset)
     zoom = apply_auto_zoom(root)
     cursor = apply_cursor_motion(root)
     edit = apply_auto_edit(root)

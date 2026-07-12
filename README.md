@@ -335,6 +335,7 @@ hermes-screencast project-polish /tmp/product.hermes \
 and time edits, writes a sibling `.preview.html`, then renders high-quality MP4
 with short synchronized fades, automatic encoder selection, and normalized
 audio when present. All generated tracks remain editable in HermesProject.
+Use `--preset keep` to preserve an existing custom composition.
 
 Record the maintained public example:
 

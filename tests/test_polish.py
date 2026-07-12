@@ -38,3 +38,15 @@ def test_polish_scales_fades_for_very_short_output() -> None:
 def test_polish_rejects_negative_fade() -> None:
     with pytest.raises(ValueError, match="non-negative"):
         _fit_fades(-0.1, 0.2, 4)
+
+
+def test_polish_keep_preserves_existing_composition(tmp_path, monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(polish_module, "apply_framing_preset", lambda *args, **kwargs: calls.append("framing"))
+    monkeypatch.setattr(polish_module, "apply_auto_zoom", lambda path: {"segments": []})
+    monkeypatch.setattr(polish_module, "apply_cursor_motion", lambda path: {"segments": []})
+    monkeypatch.setattr(polish_module, "apply_auto_edit", lambda path: {"segments": [], "summary": {"estimated_duration_seconds": 2}})
+    monkeypatch.setattr(polish_module, "write_project_preview", lambda path, target: target)
+    monkeypatch.setattr(polish_module, "render_hermes_project", lambda path, target, **kwargs: Path(target))
+    polish_hermes_project(tmp_path / "demo.hermes", tmp_path / "out.mp4", preset="keep")
+    assert calls == []
