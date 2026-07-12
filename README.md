@@ -324,6 +324,18 @@ range, and -1.5 dB true peak before final audio fades.
 Choose `--quality draft`, `balanced`, `high`, or `archive` to trade encoding
 speed and output size for visual fidelity. `high` preserves the prior default.
 
+Run the complete recommended workflow with one command:
+
+```bash
+hermes-screencast project-polish /tmp/product.hermes \
+  --output /tmp/product-final.mp4
+```
+
+`project-polish` applies studio framing, regenerates auto zoom, cursor motion,
+and time edits, writes a sibling `.preview.html`, then renders high-quality MP4
+with short synchronized fades, automatic encoder selection, and normalized
+audio when present. All generated tracks remain editable in HermesProject.
+
 Record the maintained public example:
 
 ```bash

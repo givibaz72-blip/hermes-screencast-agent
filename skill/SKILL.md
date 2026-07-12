@@ -146,6 +146,10 @@ Before recording, determine:
     specific verified hardware backend is required. Verify the generated MP4
     before delivery.
 
+    Prefer `hermes-screencast project-polish product.hermes --output final.mp4`
+    when the user wants the complete recommended workflow with standard studio
+    defaults and a review preview.
+
     Add short `--fade-in` and `--fade-out` values only when opening and closing
     polish is appropriate for the requested deliverable.
 
