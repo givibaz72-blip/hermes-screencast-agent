@@ -8,6 +8,7 @@ from typing import Any
 from .auto_zoom import AutoZoomSettings, apply_auto_zoom
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
+from .cursor_motion import CursorMotionSettings, apply_cursor_motion
 from .demo.browser_executor import BrowserDemoExecutor
 from .demo.discovery import PageDiscoveryService
 from .demo.events import default_events_path
@@ -328,6 +329,25 @@ def run_project_auto_zoom_command(args: argparse.Namespace) -> dict[str, Any]:
     return track
 
 
+def run_project_cursor_motion_command(args: argparse.Namespace) -> dict[str, Any]:
+    track = apply_cursor_motion(
+        args.project_directory,
+        settings=CursorMotionSettings(
+            speed_pixels_per_second=args.speed,
+            minimum_move_seconds=args.min_duration,
+            maximum_move_seconds=args.max_duration,
+            settle_seconds=args.settle,
+            tension=args.tension,
+        ),
+    )
+    print(
+        "HermesProject cursor motion generated: "
+        f"{len(track['anchors'])} anchors, {len(track['segments'])} segments",
+        flush=True,
+    )
+    return track
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -430,6 +450,17 @@ def build_parser() -> argparse.ArgumentParser:
     project_auto_zoom.add_argument("--target-margin", type=float, default=80.0)
     project_auto_zoom.add_argument("--merge-distance", type=float, default=120.0)
 
+    project_cursor_motion = sub.add_parser(
+        "project-cursor-motion",
+        help="Generate a smooth non-destructive cursor motion track",
+    )
+    project_cursor_motion.add_argument("project_directory")
+    project_cursor_motion.add_argument("--speed", type=float, default=1400.0)
+    project_cursor_motion.add_argument("--min-duration", type=float, default=0.12)
+    project_cursor_motion.add_argument("--max-duration", type=float, default=0.75)
+    project_cursor_motion.add_argument("--settle", type=float, default=0.06)
+    project_cursor_motion.add_argument("--tension", type=float, default=0.6)
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -493,6 +524,10 @@ def main() -> None:
 
     if args.command == "project-auto-zoom":
         run_project_auto_zoom_command(args)
+        return
+
+    if args.command == "project-cursor-motion":
+        run_project_cursor_motion_command(args)
         return
 
     if args.legacy_task_json:

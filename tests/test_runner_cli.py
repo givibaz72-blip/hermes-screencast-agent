@@ -168,3 +168,15 @@ def test_project_auto_zoom_parser():
     assert args.scale == 1.45
     assert args.hold == 0.8
     assert args.merge_distance == 90
+
+
+def test_project_cursor_motion_parser():
+    args = build_parser().parse_args([
+        "project-cursor-motion", "/tmp/demo.hermes",
+        "--speed", "1200", "--settle", "0.08", "--tension", "0.7",
+    ])
+    assert args.command == "project-cursor-motion"
+    assert args.project_directory == "/tmp/demo.hermes"
+    assert args.speed == 1200
+    assert args.settle == 0.08
+    assert args.tension == 0.7
