@@ -1,11 +1,51 @@
 {
-  "title": "example_demo",
-  "url": "https://example.com",
-  "mode": "public",
+  "title": "Hermes public demo",
+  "target": {
+    "kind": "web",
+    "url": "https://example.com"
+  },
+  "preferences": {
+    "resolution": "1080p",
+    "cursor_speed": "natural",
+    "highlight_style": "subtle",
+    "marker_colors": [
+      "yellow"
+    ],
+    "pacing": "professional",
+    "browser_ui": "visible"
+  },
+  "metadata": {
+    "schema": "hermes.demo.v1",
+    "mode": "public"
+  },
   "steps": [
-    {"action": "wait", "seconds": 2},
-    {"action": "hover", "selector": "a", "pause": 1},
-    {"action": "wait", "seconds": 1}
-  ],
-  "sync_offset": 0.3
+    {
+      "action": "goto",
+      "url": "https://example.com"
+    },
+    {
+      "action": "wait",
+      "seconds": 1
+    },
+    {
+      "action": "narration",
+      "text": "Hermes records a professional browser demonstration"
+    },
+    {
+      "action": "wait",
+      "seconds": 1
+    },
+    {
+      "action": "hover",
+      "selector": "a"
+    },
+    {
+      "action": "draw_box",
+      "selector": "a"
+    },
+    {
+      "action": "wait",
+      "seconds": 2
+    }
+  ]
 }

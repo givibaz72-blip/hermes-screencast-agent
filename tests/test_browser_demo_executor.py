@@ -405,3 +405,46 @@ def test_browser_demo_executor_assert_not_element_visible_fails_when_element_is_
 
     with pytest.raises(AssertionError, match="Element unexpectedly visible: #spinner"):
         executor.assert_not_element_visible("#spinner")
+
+@dataclass
+class FakeVisualCursor:
+    calls: list[tuple[str, str | None]] = field(default_factory=list)
+
+    def install(self) -> None:
+        self.calls.append(("install", None))
+
+    def move_to_selector(self, selector: str) -> tuple[float, float]:
+        self.calls.append(("move", selector))
+        return 100.0, 200.0
+
+    def show_click_ripple(self) -> None:
+        self.calls.append(("ripple", None))
+
+
+def test_browser_demo_executor_uses_visual_cursor_for_interactions() -> None:
+    runtime = FakeBrowserRuntime()
+    cursor = FakeVisualCursor()
+    executor = BrowserDemoExecutor(
+        runtime=runtime,
+        visual_cursor=cursor,
+    )
+
+    executor.click("#button")
+    executor.hover("#menu")
+    executor.fill("#email", "demo@example.com")
+
+    assert cursor.calls == [
+        ("move", "#button"),
+        ("ripple", None),
+        ("move", "#menu"),
+        ("move", "#email"),
+        ("ripple", None),
+    ]
+
+    assert runtime.calls == [
+        ("wait", (0.12,)),
+        ("click", ("#button",)),
+        ("hover", ("#menu",)),
+        ("wait", (0.12,)),
+        ("fill", ("#email", "demo@example.com")),
+    ]

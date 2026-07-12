@@ -2,12 +2,13 @@
 *.py text eol=lf
 *.md text eol=lf
 
-# Preserve existing CRLF files until a separate normalization change.
-src/hermes_screencast/demo/browser_executor.py text eol=crlf
-src/hermes_screencast/demo/executor.py text eol=crlf
-src/hermes_screencast/demo/runner.py text eol=crlf
-src/hermes_screencast/demo/smoke.py text eol=crlf
-tests/test_browser_demo_executor.py text eol=crlf
-tests/test_browser_runtime.py text eol=crlf
-tests/test_demo_runner.py text eol=crlf
-tools/run_demo_script_smoke.py text eol=crlf
+# Preserve these existing CRLF files byte-for-byte until a separate
+# normalization change. Treat CR before LF as a valid line ending.
+src/hermes_screencast/demo/browser_executor.py -text -eol whitespace=cr-at-eol
+src/hermes_screencast/demo/executor.py -text -eol whitespace=cr-at-eol
+src/hermes_screencast/demo/runner.py -text -eol whitespace=cr-at-eol
+src/hermes_screencast/demo/smoke.py -text -eol whitespace=cr-at-eol
+tests/test_browser_demo_executor.py -text -eol whitespace=cr-at-eol
+tests/test_browser_runtime.py -text -eol whitespace=cr-at-eol
+tests/test_demo_runner.py -text -eol whitespace=cr-at-eol
+tools/run_demo_script_smoke.py -text -eol whitespace=cr-at-eol

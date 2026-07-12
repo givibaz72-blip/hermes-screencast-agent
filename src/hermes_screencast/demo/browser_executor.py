@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
+from hermes_screencast.cursor import VisualCursor
+
 
 DEFAULT_WAIT_FOR_ELEMENT_SECONDS = 5.0
 WAIT_FOR_ELEMENT_POLL_SECONDS = 0.1
@@ -16,6 +18,13 @@ DEFAULT_WAIT_FOR_NAVIGATION_IDLE_SECONDS = 1.0
 
 
 class BrowserRuntimeLike(Protocol):
+    @property
+    def mouse(self):
+        ...
+
+    def add_init_script(self, script: str) -> None:
+        ...
+
     def goto(self, url: str) -> None:
         ...
 
@@ -38,17 +47,37 @@ class BrowserRuntimeLike(Protocol):
 @dataclass
 class BrowserDemoExecutor:
     runtime: BrowserRuntimeLike
+    visual_cursor: VisualCursor | None = None
+
+    def enable_visual_cursor(self) -> None:
+        if self.visual_cursor is None:
+            self.visual_cursor = VisualCursor(runtime=self.runtime)
+
+        self.visual_cursor.install()
 
     def goto(self, url: str) -> None:
         self.runtime.goto(url)
 
     def click(self, selector: str) -> None:
+        if self.visual_cursor is not None:
+            self.visual_cursor.move_to_selector(selector)
+            self.visual_cursor.show_click_ripple()
+            self.runtime.wait(0.12)
+
         self.runtime.click(selector)
 
     def hover(self, selector: str) -> None:
+        if self.visual_cursor is not None:
+            self.visual_cursor.move_to_selector(selector)
+
         self.runtime.hover(selector)
 
     def fill(self, selector: str, text: str) -> None:
+        if self.visual_cursor is not None:
+            self.visual_cursor.move_to_selector(selector)
+            self.visual_cursor.show_click_ripple()
+            self.runtime.wait(0.12)
+
         self.runtime.fill(selector, text)
 
     def scroll(self, amount: int) -> None:
