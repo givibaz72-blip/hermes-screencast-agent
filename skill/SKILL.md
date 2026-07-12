@@ -111,7 +111,13 @@ Before recording, determine:
 
     Preserve exact interaction positions as anchors and keep the result in the
     project timeline. Do not modify or re-encode the source MP4.
-12. Return the final absolute MP4, event-log, and project paths to the user.
+12. Apply a reproducible framing preset when polished composition is expected:
+
+    hermes-screencast project-style product.hermes --preset studio
+
+    Choose `social-square` or `social-vertical` for their respective delivery
+    formats. Preserve the existing camera and cursor tracks.
+13. Return the final absolute MP4, event-log, and project paths to the user.
 
 ## Recording Behavior
 
