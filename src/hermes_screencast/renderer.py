@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import math
 import subprocess
+import time
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
@@ -15,6 +17,10 @@ SUPPORTED_RENDER_TRACKS = {
     "annotation.overlay", "camera.zoom", "cursor.motion", "time.edit",
 }
 RENDER_FPS = 30
+VIDEO_ENCODERS = {
+    "software": "libx264", "nvenc": "h264_nvenc",
+    "qsv": "h264_qsv", "amf": "h264_amf",
+}
 
 
 class UnsupportedRenderTracksError(RuntimeError):
@@ -30,6 +36,7 @@ class RenderPlan:
     unsupported_tracks: tuple[str, ...]
     estimated_duration_seconds: float
     has_audio: bool
+    video_encoder: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,6 +45,7 @@ class RenderPlan:
             "unsupported_tracks": list(self.unsupported_tracks),
             "estimated_duration_seconds": self.estimated_duration_seconds,
             "has_audio": self.has_audio,
+            "video_encoder": self.video_encoder,
         }
 
 
@@ -48,6 +56,8 @@ def build_render_plan(
     allow_unrendered: bool = False,
     ffmpeg: str = "ffmpeg",
     audio_probe: Callable[[Path], bool] | None = None,
+    video_encoder: str = "software",
+    encoder_probe: Callable[[str], bool] | None = None,
 ) -> RenderPlan:
     root = Path(project_directory).expanduser().resolve()
     project = validate_hermes_project(root)
@@ -111,6 +121,7 @@ def build_render_plan(
         source_height,
     )
     has_audio = (audio_probe or _has_audio_stream)(source)
+    selected_encoder = _select_video_encoder(video_encoder, encoder_probe)
     if has_audio:
         graph += ";" + _audio_filter_graph(time_track, source_duration)
     command_parts = [
@@ -121,13 +132,13 @@ def build_render_plan(
         command_parts.extend(["-map", "[outa]", "-c:a", "aac", "-b:a", "192k"])
     else:
         command_parts.append("-an")
-    command_parts.extend([
-        "-c:v", "libx264",
-        "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart", str(output),
-    ])
+    command_parts.extend(_video_encoder_args(selected_encoder))
+    command_parts.extend(["-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output)])
     command = tuple(command_parts)
-    return RenderPlan(source, output, command, graph, unsupported, estimated, has_audio)
+    return RenderPlan(
+        source, output, command, graph, unsupported, estimated, has_audio,
+        selected_encoder,
+    )
 
 
 def render_hermes_project(
@@ -135,11 +146,13 @@ def render_hermes_project(
     output_file: str | Path,
     *,
     allow_unrendered: bool = False,
+    video_encoder: str = "auto",
     runner: Callable[..., Any] = subprocess.run,
     verifier: Callable[[Path], Path] = verify_mp4,
 ) -> Path:
     plan = build_render_plan(
-        project_directory, output_file, allow_unrendered=allow_unrendered
+        project_directory, output_file, allow_unrendered=allow_unrendered,
+        video_encoder=video_encoder,
     )
     plan.output.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -422,6 +435,57 @@ def _has_audio_stream(source: Path) -> bool:
     except FileNotFoundError:
         return False
     return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def _select_video_encoder(
+    requested: str, probe: Callable[[str], bool] | None = None
+) -> str:
+    if requested not in {"auto", *VIDEO_ENCODERS}:
+        raise ValueError(f"Unknown video encoder mode: {requested}")
+    if requested != "auto":
+        return VIDEO_ENCODERS[requested]
+    if probe is not None:
+        for mode in ("nvenc", "qsv", "amf"):
+            encoder = VIDEO_ENCODERS[mode]
+            if probe(encoder):
+                return encoder
+        return VIDEO_ENCODERS["software"]
+    software = VIDEO_ENCODERS["software"]
+    best_encoder = software
+    best_score = _encoder_benchmark(software)
+    for mode in ("nvenc", "qsv", "amf"):
+        encoder = VIDEO_ENCODERS[mode]
+        score = _encoder_benchmark(encoder)
+        if score < best_score * 0.9:
+            best_encoder, best_score = encoder, score
+    return best_encoder
+
+
+@lru_cache(maxsize=None)
+def _encoder_benchmark(encoder: str) -> float:
+    started = time.perf_counter()
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+                "-i", "testsrc2=s=640x360:r=30:d=0.5",
+                "-c:v", encoder, "-f", "null", "-",
+            ],
+            capture_output=True, text=True, check=False, timeout=8,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return math.inf
+    return time.perf_counter() - started if result.returncode == 0 else math.inf
+
+
+def _video_encoder_args(encoder: str) -> list[str]:
+    if encoder == "h264_nvenc":
+        return ["-c:v", encoder, "-preset", "p5", "-cq", "18", "-b:v", "0"]
+    if encoder == "h264_qsv":
+        return ["-c:v", encoder, "-preset", "medium", "-global_quality", "18"]
+    if encoder == "h264_amf":
+        return ["-c:v", encoder, "-quality", "quality", "-qp_i", "18", "-qp_p", "18"]
+    return ["-c:v", "libx264", "-preset", "medium", "-crf", "18"]
 
 
 def _append_camera_filter(

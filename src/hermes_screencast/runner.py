@@ -457,12 +457,14 @@ def run_project_render_command(args: argparse.Namespace):
         plan = build_render_plan(
             args.project_directory, args.output,
             allow_unrendered=args.allow_unrendered,
+            video_encoder=args.encoder,
         )
         print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2), flush=True)
         return plan
     output = render_hermes_project(
         args.project_directory, args.output,
         allow_unrendered=args.allow_unrendered,
+        video_encoder=args.encoder,
     )
     print(f"HermesProject rendered: {output}", flush=True)
     return output
@@ -668,6 +670,10 @@ def build_parser() -> argparse.ArgumentParser:
     project_render.add_argument("--output", required=True)
     project_render.add_argument("--allow-unrendered", action="store_true")
     project_render.add_argument("--dry-run", action="store_true")
+    project_render.add_argument(
+        "--encoder", default="auto",
+        choices=("auto", "software", "nvenc", "qsv", "amf"),
+    )
 
     parser.add_argument("legacy_task_json", nargs="?")
     return parser

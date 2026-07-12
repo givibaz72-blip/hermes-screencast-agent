@@ -142,7 +142,9 @@ Before recording, determine:
     Cursor motion, camera zoom, and time edits are rendered in source-time
     order; annotations are rendered afterward in project time and canvas
     coordinates. Preserve source audio through the same time edits when it is
-    present. Verify the generated MP4 before delivery.
+    present. Leave `--encoder auto` enabled unless deterministic software or a
+    specific verified hardware backend is required. Verify the generated MP4
+    before delivery.
 17. Return the final absolute MP4, event-log, project, and preview paths.
 
 ## Recording Behavior
