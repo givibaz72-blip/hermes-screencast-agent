@@ -63,6 +63,7 @@ def test_visual_cursor_moves_smoothly_to_element_center() -> None:
     position = cursor.move_to_selector("#submit")
 
     assert position == (420.5, 240.25)
+    assert cursor.position == (420.5, 240.25)
     assert runtime.waits == [0.25]
     assert runtime.mouse.calls == [(420.5, 240.25, 30)]
     assert any(

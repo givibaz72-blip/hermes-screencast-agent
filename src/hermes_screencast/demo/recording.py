@@ -5,7 +5,13 @@ from typing import Callable
 
 from hermes_screencast.browser import BrowserRuntime, BrowserRuntimeConfig
 from hermes_screencast.demo.browser_executor import BrowserDemoExecutor
-from hermes_screencast.demo.runner import DemoRunner
+from hermes_screencast.demo.events import (
+    EventLoggingDemoRunner,
+    RecordingEventJournal,
+    default_events_path,
+    resolve_page_state,
+    resolve_target_snapshot,
+)
 from hermes_screencast.demo.script import (
     DemoActionType,
     DemoScript,
@@ -95,6 +101,9 @@ def record_demo_script(
     runtime_factory=BrowserRuntime,
     verifier: Callable[[Path], Path] = verify_mp4,
     focus_action: Callable[..., None] | None = None,
+    events_output_file: str | Path | None = None,
+    event_journal_factory=RecordingEventJournal,
+    event_runner_factory=EventLoggingDemoRunner,
 ) -> Path:
     """Execute a modern DemoScript and record its visible actions to MP4."""
     script.validate()
@@ -104,6 +113,11 @@ def record_demo_script(
     assert first_step.url is not None
 
     output_path = Path(output_file).expanduser().resolve()
+    events_path = (
+        Path(events_output_file).expanduser().resolve()
+        if events_output_file is not None
+        else default_events_path(output_path)
+    )
 
     if focus_action is None:
         focus_action = focus_display_point
@@ -196,14 +210,47 @@ def record_demo_script(
                 height=height,
                 offset_y=capture_offset_y,
             ):
-                result = DemoRunner(executor=executor).run(recorded_script)
+                journal = event_journal_factory()
+                journal.start(
+                    {
+                        "title": script.title,
+                        "video_file": output_path.name,
+                        "width": width,
+                        "height": height,
+                        "capture_offset_y": capture_offset_y,
+                        "browser_ui": browser_ui,
+                    }
+                )
+                failure: BaseException | None = None
+                try:
+                    def cursor_resolver() -> dict[str, float] | None:
+                        if executor.visual_cursor is None:
+                            return None
+                        x, y = executor.visual_cursor.position
+                        return {"x": round(x, 2), "y": round(y, 2)}
 
-                if not result.success:
-                    raise RuntimeError(
-                        result.error or "DemoScript recording failed"
-                    )
+                    result = event_runner_factory(
+                        executor=executor,
+                        journal=journal,
+                        target_resolver=lambda selector: resolve_target_snapshot(
+                            runtime, selector
+                        ),
+                        state_resolver=lambda: resolve_page_state(runtime),
+                        cursor_resolver=cursor_resolver,
+                    ).run(recorded_script)
 
-                if recording_tail_seconds > 0:
-                    executor.wait(recording_tail_seconds)
+                    if not result.success:
+                        raise RuntimeError(
+                            result.error or "DemoScript recording failed"
+                        )
+
+                    if recording_tail_seconds > 0:
+                        executor.wait(recording_tail_seconds)
+                except BaseException as exc:
+                    failure = exc
+                    raise
+                finally:
+                    journal.finish(success=failure is None, error=failure)
+                    journal.write(events_path)
 
     return verifier(output_path)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -215,6 +217,11 @@ def test_record_demo_script_starts_recording_after_page_preparation(
     assert recorder_exit_index < runtime_exit_index
     assert runtime_exit_index < display_exit_index
     assert display_exit_index < verify_index
+    event_payload = json.loads(
+        output.with_suffix(".events.json").read_text(encoding="utf-8")
+    )
+    assert event_payload["schema"] == "hermes.recording.events.v1"
+    assert event_payload["events"][-1]["data"]["success"] is True
 
 
 def test_record_demo_script_cleans_up_when_step_fails(
@@ -268,6 +275,9 @@ def test_record_demo_script_cleans_up_when_step_fails(
     assert "runtime.exit" in events
     assert "display.exit" in events
     assert "verify" not in events
+    failed_events = tmp_path / "failed.events.json"
+    event_payload = json.loads(failed_events.read_text(encoding="utf-8"))
+    assert event_payload["events"][-1]["data"]["success"] is False
 
 def test_record_demo_script_keeps_browser_ui_visible_by_default(
     tmp_path: Path,

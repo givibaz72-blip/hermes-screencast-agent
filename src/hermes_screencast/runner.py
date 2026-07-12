@@ -9,6 +9,7 @@ from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
 from .demo.discovery import PageDiscoveryService
+from .demo.events import default_events_path
 from .demo.json_loader import demo_script_to_dict, load_demo_script
 from .demo.planner import DemoDryRunPlanner
 from .demo.recording import record_demo_script
@@ -179,12 +180,19 @@ def run_demo_record_command(args: argparse.Namespace) -> Path:
         script,
         Path(args.output),
         profile=args.profile,
+        events_output_file=args.events_output,
     )
 
     print(
         f"✅ DemoScript recorded: {output_path}",
         flush=True,
     )
+    events_path = (
+        Path(args.events_output).expanduser().resolve()
+        if args.events_output
+        else default_events_path(output_path)
+    )
+    print(f"Recording events written: {events_path}", flush=True)
     return output_path
 
 
@@ -327,6 +335,7 @@ def build_parser() -> argparse.ArgumentParser:
     demo_record.add_argument("demo_json")
     demo_record.add_argument("--output", required=True)
     demo_record.add_argument("--profile", default="demo-record")
+    demo_record.add_argument("--events-output")
 
     demo_init = sub.add_parser("demo-init", help="Create a starter DemoScript JSON file")
     demo_init.add_argument("output")

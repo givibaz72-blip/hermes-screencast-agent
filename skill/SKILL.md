@@ -1,7 +1,7 @@
 ---
 name: website-screencast
 description: Use when the user asks to record a website screencast, browser walkthrough, SaaS demo, product demo, onboarding video, authenticated web app demo, or professional MP4 recording.
-version: 1.3.0
+version: 1.4.0
 author: Hermes User
 license: MIT
 platforms: [linux]
@@ -83,9 +83,12 @@ Before recording, determine:
 
     hermes-screencast demo-record scenario.json \
       --output result.mp4 \
+      --events-output result.events.json \
       --profile product-demo
 
-8. Return the final absolute MP4 path to the user.
+8. Verify that the synchronized event sidecar exists. It must not contain form
+   values or unredacted URL query values.
+9. Return the final absolute MP4 and event-log paths to the user.
 
 ## Recording Behavior
 

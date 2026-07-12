@@ -51,12 +51,14 @@ def test_demo_record_parser():
         "/tmp/demo.json",
         "--output", "/tmp/demo.mp4",
         "--profile", "recorded-demo",
+        "--events-output", "/tmp/demo.events.json",
     ])
 
     assert args.command == "demo-record"
     assert args.demo_json == "/tmp/demo.json"
     assert args.output == "/tmp/demo.mp4"
     assert args.profile == "recorded-demo"
+    assert args.events_output == "/tmp/demo.events.json"
 
 
 def test_demo_init_parser():

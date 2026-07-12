@@ -135,8 +135,17 @@ Record the DemoScript as a professional 1080p MP4:
 ```bash
 hermes-screencast demo-record /tmp/hermes_demo.json \
   --output /tmp/hermes_demo.mp4 \
+  --events-output /tmp/hermes_demo.events.json \
   --profile demo-record
 ```
+
+Every recording also writes a synchronized `hermes.recording.events.v1` JSON
+sidecar. When `--events-output` is omitted, `demo.mp4` produces
+`demo.events.json`. The journal starts after FFmpeg is ready and records
+monotonic timestamps for step start, completion, or failure; target bounds;
+viewport state; and final cursor position for visible interactions. Form values
+and URL query values are never stored. Failed recordings retain their event log
+for diagnosis.
 
 Record the maintained public example:
 
