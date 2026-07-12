@@ -321,6 +321,9 @@ audio fades after timeline edits, expressed in seconds.
 Use `--normalize-audio` to target -16 LUFS integrated loudness, 11 LU loudness
 range, and -1.5 dB true peak before final audio fades.
 
+Choose `--quality draft`, `balanced`, `high`, or `archive` to trade encoding
+speed and output size for visual fidelity. `high` preserves the prior default.
+
 Record the maintained public example:
 
 ```bash
