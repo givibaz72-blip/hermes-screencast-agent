@@ -105,7 +105,10 @@ def test_render_applies_cursor_before_camera_and_time_edits(tmp_path) -> None:
     graph = plan.filter_complex
     assert "[cursor_sprite]" in graph
     assert "geq=r='if(between(Y,5,28)" in graph
-    assert "[0:v][cursor_sprite]overlay=x='if(lt(t," in graph
+    assert "[0:v]drawvg=script='if (between(t,0.800000,1.150000))" in graph
+    assert "circle 1460.000000 630.000000" in graph
+    assert "setrgba 1 1 1 (0.8*(1-" in graph
+    assert "[cursor_clicks][cursor_sprite]overlay=x='if(lt(t," in graph
     assert "[cursor]fps=30,zoompan=" in graph
     assert "[camera]trim=start=" in graph
     assert graph.index("[cursor_sprite]") < graph.index("zoompan=")
