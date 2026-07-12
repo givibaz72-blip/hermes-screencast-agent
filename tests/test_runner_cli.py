@@ -232,3 +232,12 @@ def test_project_auto_edit_parser():
     assert args.cut_threshold == 5
     assert args.speed == 6
     assert args.context == 0.3
+
+
+def test_project_preview_parser():
+    args = build_parser().parse_args([
+        "project-preview", "/tmp/demo.hermes", "--output", "/tmp/preview.html"
+    ])
+    assert args.command == "project-preview"
+    assert args.project_directory == "/tmp/demo.hermes"
+    assert args.output == "/tmp/preview.html"

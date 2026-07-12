@@ -270,6 +270,19 @@ on both sides so actions are not clipped. The `time.edit` track retains source
 timestamps and reports source, estimated, and removed duration; it never edits
 or re-encodes the MP4 itself.
 
+Generate a self-contained read-only project preview:
+
+```bash
+hermes-screencast project-preview /tmp/product.hermes \
+  --output /tmp/product-preview.html
+```
+
+The HTML file requires no server or external assets. It displays the selected
+composition, source and estimated durations, a scrubber, and synchronized rows
+for camera, cursor, annotations, and time edits. The embedded preview data is
+escaped before insertion and does not include recording-event payloads or asset
+contents.
+
 Record the maintained public example:
 
 ```bash
