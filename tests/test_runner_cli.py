@@ -156,3 +156,15 @@ def test_project_validate_parser():
     args = build_parser().parse_args(["project-validate", "/tmp/demo.hermes"])
     assert args.command == "project-validate"
     assert args.project_directory == "/tmp/demo.hermes"
+
+
+def test_project_auto_zoom_parser():
+    args = build_parser().parse_args([
+        "project-auto-zoom", "/tmp/demo.hermes",
+        "--scale", "1.45", "--hold", "0.8", "--merge-distance", "90",
+    ])
+    assert args.command == "project-auto-zoom"
+    assert args.project_directory == "/tmp/demo.hermes"
+    assert args.scale == 1.45
+    assert args.hold == 0.8
+    assert args.merge_distance == 90

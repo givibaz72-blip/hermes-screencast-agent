@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import shutil
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -31,6 +32,7 @@ class HermesProject:
     title: str
     assets: dict[str, ProjectAsset]
     composition: dict[str, Any]
+    timeline: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,7 +40,7 @@ class HermesProject:
             "title": self.title,
             "assets": {name: asset.to_dict() for name, asset in sorted(self.assets.items())},
             "composition": dict(self.composition),
-            "timeline": {"tracks": []},
+            "timeline": dict(self.timeline),
         }
 
 
@@ -85,6 +87,7 @@ def create_hermes_project(
             "background": {"type": "color", "value": "#111827"},
             "frame": {"padding": 0, "corner_radius": 0, "shadow": False},
         },
+        timeline={"tracks": []},
     )
     root.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(
@@ -108,14 +111,21 @@ def load_hermes_project(project_directory: str | Path) -> HermesProject:
     title = payload.get("title")
     assets_payload = payload.get("assets")
     composition = payload.get("composition")
+    timeline = payload.get("timeline")
     if not isinstance(title, str) or not title.strip():
         raise ValueError("HermesProject requires non-empty title")
     if not isinstance(assets_payload, dict) or not REQUIRED_ASSETS.issubset(assets_payload):
         raise ValueError("HermesProject requires video, events, and script assets")
     if not isinstance(composition, dict):
         raise ValueError("HermesProject composition must be an object")
+    validate_project_timeline(timeline)
     assets = {name: _asset_from_dict(name, value) for name, value in assets_payload.items()}
-    return HermesProject(title=title, assets=assets, composition=composition)
+    return HermesProject(
+        title=title,
+        assets=assets,
+        composition=composition,
+        timeline=timeline,
+    )
 
 
 def validate_hermes_project(project_directory: str | Path) -> HermesProject:
@@ -175,6 +185,105 @@ def _validate_events_file(path: Path) -> None:
         raise ValueError(f"Recording events must use schema {EVENT_SCHEMA}")
     if not isinstance(payload.get("events"), list):
         raise ValueError("Recording events must contain events list")
+
+
+def validate_project_timeline(payload: Any) -> None:
+    if not isinstance(payload, dict) or set(payload) != {"tracks"}:
+        raise ValueError("HermesProject timeline must contain only tracks")
+    tracks = payload["tracks"]
+    if not isinstance(tracks, list):
+        raise ValueError("HermesProject timeline tracks must be a list")
+    identifiers: set[str] = set()
+    for track in tracks:
+        if not isinstance(track, dict):
+            raise ValueError("HermesProject timeline track must be an object")
+        identifier = track.get("id")
+        track_type = track.get("type")
+        segments = track.get("segments")
+        if not isinstance(identifier, str) or not identifier:
+            raise ValueError("HermesProject timeline track requires an id")
+        if identifier in identifiers:
+            raise ValueError(f"HermesProject timeline track id is duplicated: {identifier}")
+        identifiers.add(identifier)
+        if not isinstance(track_type, str) or not track_type:
+            raise ValueError("HermesProject timeline track requires a type")
+        if not isinstance(segments, list):
+            raise ValueError("HermesProject timeline track segments must be a list")
+        if track_type == "camera.zoom":
+            _validate_camera_zoom_track(track)
+
+
+def _validate_camera_zoom_track(track: dict[str, Any]) -> None:
+    if set(track) != {"id", "type", "source", "settings", "segments"}:
+        raise ValueError("HermesProject camera zoom track has invalid fields")
+    if track["source"] != "automatic":
+        raise ValueError("HermesProject camera zoom track source must be automatic")
+    settings = track["settings"]
+    if not isinstance(settings, dict):
+        raise ValueError("HermesProject camera zoom settings must be an object")
+    expected_settings = {
+        "scale", "lead_seconds", "hold_seconds", "transition_seconds",
+        "target_margin", "merge_distance", "easing",
+    }
+    if set(settings) != expected_settings or settings["easing"] != "ease_in_out_cubic":
+        raise ValueError("HermesProject camera zoom settings are invalid")
+    for name in expected_settings - {"easing"}:
+        value = settings[name]
+        if (
+            not isinstance(value, (int, float)) or isinstance(value, bool)
+            or not math.isfinite(value) or value < 0
+        ):
+            raise ValueError(f"HermesProject camera zoom setting is invalid: {name}")
+    if settings["scale"] < 1:
+        raise ValueError("HermesProject camera zoom scale must be at least 1")
+
+    previous_end = -1.0
+    expected_segment_fields = {
+        "start_seconds", "focus_seconds", "hold_until_seconds", "end_seconds",
+        "scale", "focus", "source_event_sequences",
+    }
+    for segment in track["segments"]:
+        if not isinstance(segment, dict) or set(segment) != expected_segment_fields:
+            raise ValueError("HermesProject camera zoom segment is invalid")
+        times = [
+            segment["start_seconds"], segment["focus_seconds"],
+            segment["hold_until_seconds"], segment["end_seconds"],
+        ]
+        if any(
+            not isinstance(value, (int, float)) or isinstance(value, bool)
+            or not math.isfinite(value) or value < 0
+            for value in times
+        ) or times != sorted(times):
+            raise ValueError("HermesProject camera zoom segment times are invalid")
+        if times[0] < previous_end:
+            raise ValueError("HermesProject camera zoom segments must not overlap")
+        previous_end = times[-1]
+        scale = segment["scale"]
+        focus = segment["focus"]
+        sequences = segment["source_event_sequences"]
+        if (
+            not isinstance(scale, (int, float)) or isinstance(scale, bool)
+            or not math.isfinite(scale) or scale < 1
+        ):
+            raise ValueError("HermesProject camera zoom segment scale is invalid")
+        if (
+            not isinstance(focus, dict) or set(focus) != {"x", "y"}
+            or any(
+                not isinstance(focus[name], (int, float))
+                or isinstance(focus[name], bool)
+                or not math.isfinite(focus[name])
+                for name in ("x", "y")
+            )
+        ):
+            raise ValueError("HermesProject camera zoom segment focus is invalid")
+        if (
+            not isinstance(sequences, list) or not sequences
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in sequences
+            )
+        ):
+            raise ValueError("HermesProject camera zoom event references are invalid")
 
 
 def _asset_for_file(path: Path, relative: str) -> ProjectAsset:
