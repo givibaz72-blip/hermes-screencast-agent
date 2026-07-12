@@ -33,6 +33,7 @@ from .framing import (
     apply_framing_preset,
     available_framing_presets,
 )
+from .editor_server import create_editor_server
 from .planner import make_basic_task
 from .polish import polish_hermes_project
 from .preview import write_project_preview
@@ -488,6 +489,20 @@ def run_project_polish_command(args: argparse.Namespace):
     return result
 
 
+def run_project_editor_command(args: argparse.Namespace):
+    server = create_editor_server(
+        args.project_directory, host=args.host, port=args.port
+    )
+    host, port = server.server_address[:2]
+    print(f"Hermes editor: http://{host}:{port}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -723,6 +738,13 @@ def build_parser() -> argparse.ArgumentParser:
     project_polish.add_argument("--fade-out", type=float, default=0.25)
     project_polish.add_argument("--no-normalize-audio", action="store_true")
 
+    project_editor = sub.add_parser(
+        "project-editor", help="Run the local HermesProject timeline editor",
+    )
+    project_editor.add_argument("project_directory")
+    project_editor.add_argument("--host", default="127.0.0.1")
+    project_editor.add_argument("--port", type=int, default=8765)
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -821,6 +843,9 @@ def main() -> None:
         return
     if args.command == "project-polish":
         run_project_polish_command(args)
+        return
+    if args.command == "project-editor":
+        run_project_editor_command(args)
         return
 
     if args.legacy_task_json:
