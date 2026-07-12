@@ -72,6 +72,18 @@ def demo_script_from_dict(payload: dict[str, Any]) -> DemoScript:
     return script
 
 
+def demo_script_to_dict(script: DemoScript) -> dict[str, Any]:
+    script.validate()
+
+    return {
+        "title": script.title,
+        "target": dict(script.target),
+        "preferences": dict(script.preferences),
+        "metadata": dict(script.metadata),
+        "steps": [_demo_step_to_dict(step) for step in script.steps],
+    }
+
+
 def _optional_object_field(payload: dict[str, Any], field_name: str) -> dict[str, Any]:
     value = payload.get(field_name, {})
     if not isinstance(value, dict):
@@ -111,3 +123,17 @@ def _demo_step_from_dict(index: int, payload: dict[str, Any]) -> DemoStep:
         note=payload.get("note"),
         metadata=metadata,
     )
+
+
+def _demo_step_to_dict(step: DemoStep) -> dict[str, Any]:
+    payload: dict[str, Any] = {"action": step.action.value}
+
+    for field_name in ("selector", "url", "text", "seconds", "value", "note"):
+        value = getattr(step, field_name)
+        if value is not None:
+            payload[field_name] = value
+
+    if step.metadata:
+        payload["metadata"] = dict(step.metadata)
+
+    return payload

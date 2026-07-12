@@ -1,7 +1,7 @@
 ---
 name: website-screencast
 description: Use when the user asks to record a website screencast, browser walkthrough, SaaS demo, product demo, onboarding video, authenticated web app demo, or professional MP4 recording.
-version: 1.1.0
+version: 1.2.0
 author: Hermes User
 license: MIT
 platforms: [linux]
@@ -46,23 +46,34 @@ Before recording, determine:
 
 ## DemoScript Workflow
 
-1. Convert the user scenario into a DemoScript JSON file.
-2. Make `goto` the first step.
-3. Validate the scenario:
+1. Save the user's normal-language scenario to a UTF-8 text file.
+2. Generate a validated DemoScript with the configured provider adapter:
+
+    hermes-screencast demo-generate scenario.txt \
+      --target-url https://example.com \
+      --provider-command /path/to/hermes-provider \
+      --output scenario.json
+
+   The adapter reads a prompt from standard input and writes only a DemoScript
+   JSON object to standard output. Keep provider credentials in its environment,
+   never in the scenario or generated JSON.
+
+3. Confirm that `goto` is the first step.
+4. Validate the scenario:
 
     hermes-screencast demo-validate scenario.json
 
-4. Review the deterministic action plan:
+5. Review the deterministic action plan:
 
     hermes-screencast demo-plan scenario.json
 
-5. Record the professional MP4:
+6. Record the professional MP4:
 
     hermes-screencast demo-record scenario.json \
       --output result.mp4 \
       --profile product-demo
 
-6. Return the final absolute MP4 path to the user.
+7. Return the final absolute MP4 path to the user.
 
 ## Recording Behavior
 

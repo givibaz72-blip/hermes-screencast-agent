@@ -3,14 +3,20 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
-from .demo.json_loader import load_demo_script
+from .demo.json_loader import demo_script_to_dict, load_demo_script
 from .demo.planner import DemoDryRunPlanner
 from .demo.recording import record_demo_script
 from .demo.runner import DemoRunner
+from .demo.scenario_planner import (
+    CommandScenarioProvider,
+    ScenarioPlanner,
+    ScenarioPlanningRequest,
+)
 from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
 from .recorder_adapter import RecorderAdapter
@@ -196,6 +202,45 @@ def run_demo_plan_command(args: argparse.Namespace) -> None:
     print(plan.to_text(), flush=True)
 
 
+def run_demo_generate_command(args: argparse.Namespace) -> Path:
+    scenario_path = Path(args.scenario).expanduser().resolve()
+    if not scenario_path.exists():
+        raise FileNotFoundError(scenario_path)
+
+    preferences = _load_json_object(Path(args.preferences)) if args.preferences else {}
+    request = ScenarioPlanningRequest(
+        scenario=scenario_path.read_text(encoding="utf-8"),
+        target_url=args.target_url,
+        title=args.title,
+        preferences=preferences,
+        constraints=tuple(args.constraint),
+    )
+    provider = CommandScenarioProvider(
+        command=(args.provider_command, *args.provider_arg),
+    )
+    script = ScenarioPlanner(provider=provider).plan(request)
+
+    output_path = Path(args.output).expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(demo_script_to_dict(script), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"DemoScript generated: {output_path}", flush=True)
+    return output_path
+
+
+def _load_json_object(path: Path) -> dict[str, Any]:
+    resolved_path = path.expanduser().resolve()
+    if not resolved_path.exists():
+        raise FileNotFoundError(resolved_path)
+
+    payload = json.loads(resolved_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Preferences JSON root must be an object")
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -251,6 +296,19 @@ def build_parser() -> argparse.ArgumentParser:
     demo_plan = sub.add_parser("demo-plan", help="Print a dry-run plan for a DemoScript JSON file")
     demo_plan.add_argument("demo_json")
 
+    demo_generate = sub.add_parser(
+        "demo-generate",
+        help="Generate a validated DemoScript from a user-written scenario",
+    )
+    demo_generate.add_argument("scenario")
+    demo_generate.add_argument("--output", required=True)
+    demo_generate.add_argument("--provider-command", required=True)
+    demo_generate.add_argument("--provider-arg", action="append", default=[])
+    demo_generate.add_argument("--target-url")
+    demo_generate.add_argument("--title")
+    demo_generate.add_argument("--preferences")
+    demo_generate.add_argument("--constraint", action="append", default=[])
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -294,6 +352,10 @@ def main() -> None:
 
     if args.command == "demo-plan":
         run_demo_plan_command(args)
+        return
+
+    if args.command == "demo-generate":
+        run_demo_generate_command(args)
         return
 
     if args.legacy_task_json:
