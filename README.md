@@ -139,6 +139,7 @@ fill
 scroll
 wait
 wait_for_element
+wait_for_not_element_visible
 wait_for_url_contains
 wait_for_text_visible
 wait_for_not_text_visible
