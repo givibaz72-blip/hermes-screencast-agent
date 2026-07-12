@@ -237,6 +237,20 @@ def test_render_normalizes_audio_before_final_fades(tmp_path) -> None:
     assert plan.normalize_audio is True
 
 
+@pytest.mark.parametrize(("profile", "preset", "quality"), [
+    ("draft", "veryfast", "28"),
+    ("balanced", "fast", "22"),
+    ("high", "medium", "18"),
+    ("archive", "slow", "14"),
+])
+def test_render_software_quality_profiles(tmp_path, profile, preset, quality) -> None:
+    root = create_project(tmp_path)
+    plan = build_render_plan(root, tmp_path / "output.mp4", quality_profile=profile)
+    assert plan.quality_profile == profile
+    assert plan.command[plan.command.index("-preset") + 1] == preset
+    assert plan.command[plan.command.index("-crf") + 1] == quality
+
+
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
     root = create_project(tmp_path)
     output = tmp_path / "output.mp4"

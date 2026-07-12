@@ -152,6 +152,9 @@ Before recording, determine:
     Use `--normalize-audio` when source loudness is uneven or a consistent
     presentation level is required.
 
+    Use `--quality draft` for review iterations, `high` for normal delivery,
+    and `archive` only when extra encode time and file size are acceptable.
+
     Completed click anchors automatically receive a short vector feedback ring;
     keep cursor motion enabled when visible interaction feedback is expected.
 17. Return the final absolute MP4, event-log, project, and preview paths.

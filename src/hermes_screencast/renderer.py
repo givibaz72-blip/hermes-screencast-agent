@@ -21,6 +21,12 @@ VIDEO_ENCODERS = {
     "software": "libx264", "nvenc": "h264_nvenc",
     "qsv": "h264_qsv", "amf": "h264_amf",
 }
+QUALITY_PROFILES = {
+    "draft": {"quality": 28, "software_preset": "veryfast", "hardware_preset": "p3"},
+    "balanced": {"quality": 22, "software_preset": "fast", "hardware_preset": "p4"},
+    "high": {"quality": 18, "software_preset": "medium", "hardware_preset": "p5"},
+    "archive": {"quality": 14, "software_preset": "slow", "hardware_preset": "p6"},
+}
 
 
 class UnsupportedRenderTracksError(RuntimeError):
@@ -40,6 +46,7 @@ class RenderPlan:
     fade_in_seconds: float
     fade_out_seconds: float
     normalize_audio: bool
+    quality_profile: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -52,6 +59,7 @@ class RenderPlan:
             "fade_in_seconds": self.fade_in_seconds,
             "fade_out_seconds": self.fade_out_seconds,
             "normalize_audio": self.normalize_audio,
+            "quality_profile": self.quality_profile,
         }
 
 
@@ -67,6 +75,7 @@ def build_render_plan(
     fade_in_seconds: float = 0.0,
     fade_out_seconds: float = 0.0,
     normalize_audio: bool = False,
+    quality_profile: str = "high",
 ) -> RenderPlan:
     root = Path(project_directory).expanduser().resolve()
     project = validate_hermes_project(root)
@@ -132,6 +141,8 @@ def build_render_plan(
     )
     has_audio = (audio_probe or _has_audio_stream)(source)
     selected_encoder = _select_video_encoder(video_encoder, encoder_probe)
+    if quality_profile not in QUALITY_PROFILES:
+        raise ValueError(f"Unknown render quality profile: {quality_profile}")
     if has_audio:
         graph += ";" + _audio_filter_graph(time_track, source_duration)
     video_label, audio_label = "outv", "outa"
@@ -152,12 +163,13 @@ def build_render_plan(
         command_parts.extend(["-map", f"[{audio_label}]", "-c:a", "aac", "-b:a", "192k"])
     else:
         command_parts.append("-an")
-    command_parts.extend(_video_encoder_args(selected_encoder))
+    command_parts.extend(_video_encoder_args(selected_encoder, quality_profile))
     command_parts.extend(["-pix_fmt", "yuv420p", "-movflags", "+faststart", str(output)])
     command = tuple(command_parts)
     return RenderPlan(
         source, output, command, graph, unsupported, estimated, has_audio,
         selected_encoder, fade_in_seconds, fade_out_seconds, normalize_audio,
+        quality_profile,
     )
 
 
@@ -170,6 +182,7 @@ def render_hermes_project(
     fade_in_seconds: float = 0.0,
     fade_out_seconds: float = 0.0,
     normalize_audio: bool = False,
+    quality_profile: str = "high",
     runner: Callable[..., Any] = subprocess.run,
     verifier: Callable[[Path], Path] = verify_mp4,
 ) -> Path:
@@ -178,6 +191,7 @@ def render_hermes_project(
         video_encoder=video_encoder,
         fade_in_seconds=fade_in_seconds, fade_out_seconds=fade_out_seconds,
         normalize_audio=normalize_audio,
+        quality_profile=quality_profile,
     )
     plan.output.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -521,14 +535,16 @@ def _encoder_benchmark(encoder: str) -> float:
     return time.perf_counter() - started if result.returncode == 0 else math.inf
 
 
-def _video_encoder_args(encoder: str) -> list[str]:
+def _video_encoder_args(encoder: str, quality_profile: str) -> list[str]:
+    profile = QUALITY_PROFILES[quality_profile]
+    quality = str(profile["quality"])
     if encoder == "h264_nvenc":
-        return ["-c:v", encoder, "-preset", "p5", "-cq", "18", "-b:v", "0"]
+        return ["-c:v", encoder, "-preset", str(profile["hardware_preset"]), "-cq", quality, "-b:v", "0"]
     if encoder == "h264_qsv":
-        return ["-c:v", encoder, "-preset", "medium", "-global_quality", "18"]
+        return ["-c:v", encoder, "-preset", "medium", "-global_quality", quality]
     if encoder == "h264_amf":
-        return ["-c:v", encoder, "-quality", "quality", "-qp_i", "18", "-qp_p", "18"]
-    return ["-c:v", "libx264", "-preset", "medium", "-crf", "18"]
+        return ["-c:v", encoder, "-quality", "quality", "-qp_i", quality, "-qp_p", quality]
+    return ["-c:v", "libx264", "-preset", str(profile["software_preset"]), "-crf", quality]
 
 
 def _append_camera_filter(
