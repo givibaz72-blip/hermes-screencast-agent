@@ -1,0 +1,13 @@
+# Use LF for Python and Markdown files by default.
+*.py text eol=lf
+*.md text eol=lf
+
+# Preserve existing CRLF files until a separate normalization change.
+src/hermes_screencast/demo/browser_executor.py text eol=crlf
+src/hermes_screencast/demo/executor.py text eol=crlf
+src/hermes_screencast/demo/runner.py text eol=crlf
+src/hermes_screencast/demo/smoke.py text eol=crlf
+tests/test_browser_demo_executor.py text eol=crlf
+tests/test_browser_runtime.py text eol=crlf
+tests/test_demo_runner.py text eol=crlf
+tools/run_demo_script_smoke.py text eol=crlf
