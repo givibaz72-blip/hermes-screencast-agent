@@ -112,7 +112,7 @@ def test_render_applies_cursor_before_camera_and_time_edits(tmp_path) -> None:
     assert plan.unsupported_tracks == ()
 
 
-def test_render_rejects_unimplemented_tracks_by_default(tmp_path) -> None:
+def test_render_applies_all_annotation_kinds_after_composition(tmp_path) -> None:
     root = create_project(tmp_path)
     add_project_annotation(
         root,
@@ -124,13 +124,30 @@ def test_render_rejects_unimplemented_tracks_by_default(tmp_path) -> None:
         width=300,
         height=200,
     )
-    with pytest.raises(UnsupportedRenderTracksError, match="annotation.overlay"):
-        build_render_plan(root, tmp_path / "output.mp4")
-
-    plan = build_render_plan(
-        root, tmp_path / "output.mp4", allow_unrendered=True
+    add_project_annotation(
+        root, kind="highlight", start_seconds=2, end_seconds=3,
+        x=500, y=120, width=240, height=100,
     )
-    assert plan.unsupported_tracks == ("annotation.overlay",)
+    add_project_annotation(
+        root, kind="arrow", start_seconds=3, end_seconds=4,
+        x=80, y=80, to_x=420, to_y=320,
+    )
+    add_project_annotation(
+        root, kind="text", start_seconds=1, end_seconds=4,
+        x=120, y=60, text="Important: action",
+    )
+    plan = build_render_plan(root, tmp_path / "output.mp4")
+
+    graph = plan.filter_complex
+    assert "format=rgba[composed]" in graph
+    assert "drawvg=script='if (between(t,1,2))" in graph
+    assert "setlinejoin round stroke" in graph
+    assert "setlinecap round" in graph
+    assert "drawtext=text='Important\\: action'" in graph
+    assert "enable='between(t,1,4)'" in graph
+    assert graph.index("[composed]") < graph.index("drawvg=")
+    assert graph.index("drawvg=") < graph.index("drawtext=")
+    assert plan.unsupported_tracks == ()
 
 
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:

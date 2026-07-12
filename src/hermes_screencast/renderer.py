@@ -11,7 +11,9 @@ from hermes_screencast.project import validate_hermes_project
 from hermes_screencast.verifier import verify_mp4
 
 
-SUPPORTED_RENDER_TRACKS = {"camera.zoom", "cursor.motion", "time.edit"}
+SUPPORTED_RENDER_TRACKS = {
+    "annotation.overlay", "camera.zoom", "cursor.motion", "time.edit",
+}
 RENDER_FPS = 30
 
 
@@ -78,6 +80,13 @@ def build_render_plan(
         ),
         None,
     )
+    annotation_track = next(
+        (
+            track for track in project.timeline["tracks"]
+            if track["type"] == "annotation.overlay"
+        ),
+        None,
+    )
     event_log = _load_event_log(root, project)
     source_duration = _source_duration(event_log, time_track)
     source_width, source_height = _source_dimensions(
@@ -91,6 +100,7 @@ def build_render_plan(
         project.composition,
         camera_track,
         cursor_track,
+        annotation_track,
         time_track,
         source_duration,
         max(estimated, 0.001),
@@ -133,6 +143,7 @@ def _build_filter_graph(
     composition: dict[str, Any],
     camera_track: dict[str, Any] | None,
     cursor_track: dict[str, Any] | None,
+    annotation_track: dict[str, Any] | None,
     time_track: dict[str, Any] | None,
     source_duration: float,
     output_duration: float,
@@ -183,10 +194,142 @@ def _build_filter_graph(
         frame_label = "frame_main"
     else:
         base, frame_label = "bg", "frame"
-    filters.append(
-        f"[{base}][{frame_label}]overlay={padding}:{padding}:shortest=1,fps=30,format=yuv420p[outv]"
-    )
+    if annotation_track is None or not annotation_track["segments"]:
+        filters.append(
+            f"[{base}][{frame_label}]overlay={padding}:{padding}:shortest=1,"
+            "fps=30,format=yuv420p[outv]"
+        )
+    else:
+        filters.append(
+            f"[{base}][{frame_label}]overlay={padding}:{padding}:shortest=1,"
+            "fps=30,format=rgba[composed]"
+        )
+        _append_annotation_filters(
+            filters, annotation_track, "composed"
+        )
     return ";".join(filters)
+
+
+def _append_annotation_filters(
+    filters: list[str], track: dict[str, Any], input_label: str
+) -> str:
+    vector_script = " ".join(
+        script for segment in track["segments"]
+        if (script := _vector_annotation_script(segment))
+    )
+    label = input_label
+    index = 0
+    if vector_script:
+        label = "annotations_vector"
+        filters.append(
+            f"[{input_label}]drawvg=script='{vector_script}'[{label}]"
+        )
+    for segment in track["segments"]:
+        if segment["kind"] != "text":
+            continue
+        next_label = f"annotation_text_{index}"
+        style = segment["style"]
+        position = segment["position"]
+        text = _escape_drawtext(segment["text"])
+        font_file = _annotation_font_file(int(style["font_weight"]))
+        filters.append(
+            f"[{label}]drawtext=text='{text}':expansion=none:"
+            f"fontfile='{font_file}':"
+            f"fontcolor={style['color']}:fontsize={style['font_size']}:"
+            f"x={position['x']}:y={position['y']}:box=1:"
+            f"boxcolor={style['background_color']}:"
+            f"boxborderw={style['padding']}:alpha={style['opacity']}:"
+            f"enable='between(t,{segment['start_seconds']},{segment['end_seconds']})'"
+            f"[{next_label}]"
+        )
+        label = next_label
+        index += 1
+    filters.append(f"[{label}]format=yuv420p[outv]")
+    return "outv"
+
+
+def _vector_annotation_script(segment: dict[str, Any]) -> str:
+    kind = segment["kind"]
+    if kind == "text":
+        return ""
+    start, end = segment["start_seconds"], segment["end_seconds"]
+    style = segment["style"]
+    color = f"{style['color']}@{style['opacity']}"
+    if kind in {"box", "highlight"}:
+        bounds = segment["bounds"]
+        path = _rounded_rect_path(
+            float(bounds["x"]), float(bounds["y"]),
+            float(bounds["width"]), float(bounds["height"]),
+            float(style["corner_radius"]),
+        )
+        operation = "fill" if kind == "highlight" else (
+            f"setlinewidth {style['stroke_width']} setlinejoin round stroke"
+        )
+        return (
+            f"if (between(t,{start},{end})) {{ {path} "
+            f"setcolor {color} {operation} }}"
+        )
+    if kind == "arrow":
+        origin, target = segment["from"], segment["to"]
+        x1, y1 = float(origin["x"]), float(origin["y"])
+        x2, y2 = float(target["x"]), float(target["y"])
+        dx, dy = x2 - x1, y2 - y1
+        length = max(math.hypot(dx, dy), 0.001)
+        ux, uy = dx / length, dy / length
+        head = float(style["head_size"])
+        wing = head * 0.55
+        left = (x2 - head * ux - wing * uy, y2 - head * uy + wing * ux)
+        right = (x2 - head * ux + wing * uy, y2 - head * uy - wing * ux)
+        return (
+            f"if (between(t,{start},{end})) {{ setcolor {color} "
+            f"setlinewidth {style['stroke_width']} setlinecap round "
+            f"M {x1} {y1} L {x2} {y2} stroke "
+            f"M {x2} {y2} L {left[0]} {left[1]} {right[0]} {right[1]} Z fill }}"
+        )
+    raise ValueError(f"Unsupported annotation kind: {kind}")
+
+
+def _rounded_rect_path(
+    x: float, y: float, width: float, height: float, radius: float
+) -> str:
+    radius = max(0.0, min(radius, width / 2, height / 2))
+    if radius == 0:
+        return f"rect {x} {y} {width} {height}"
+    return (
+        f"M {x+radius} {y} L {x+width-radius} {y} "
+        f"arc {x+width-radius} {y+radius} {radius} (-PI/2) 0 "
+        f"L {x+width} {y+height-radius} "
+        f"arc {x+width-radius} {y+height-radius} {radius} 0 (PI/2) "
+        f"L {x+radius} {y+height} "
+        f"arc {x+radius} {y+height-radius} {radius} (PI/2) (PI) "
+        f"L {x} {y+radius} arc {x+radius} {y+radius} {radius} (PI) (3*PI/2) Z"
+    )
+
+
+def _escape_drawtext(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\").replace("'", "\\'")
+        .replace(":", "\\:").replace("\n", "\\n")
+    )
+
+
+def _annotation_font_file(weight: int) -> str:
+    bold = weight >= 600
+    candidates = (
+        [
+            Path("C:/Windows/Fonts/arialbd.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+            Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+        ] if bold else [
+            Path("C:/Windows/Fonts/arial.ttf"),
+            Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+            Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+        ]
+    )
+    font = next((path for path in candidates if path.is_file()), None)
+    if font is None:
+        raise ValueError("Text annotation rendering requires a system font")
+    return font.as_posix().replace(":", "\\:").replace("'", "\\'")
 
 
 def _append_time_filters(
