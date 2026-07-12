@@ -342,6 +342,16 @@ for validated composition/timeline editing. Snapshots carry a SHA-256 ETag;
 stale saves are rejected and accepted edits replace `project.json` atomically
 without allowing the editor to mutate asset references.
 
+Start the first local timeline editor with:
+
+```bash
+hermes-screencast project-editor /tmp/product.hermes
+```
+
+The server binds to `127.0.0.1` only. Its initial UI visualizes all timeline
+tracks, previews the composition background, and saves background edits through
+the validated ETag API. It never exposes source video or event-log assets.
+
 Record the maintained public example:
 
 ```bash

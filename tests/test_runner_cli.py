@@ -269,3 +269,12 @@ def test_project_polish_parser():
     assert args.quality == "balanced"
     assert args.fade_in == 0.2
     assert args.fade_out == 0.25
+
+
+def test_project_editor_parser():
+    args = build_parser().parse_args([
+        "project-editor", "/tmp/demo.hermes", "--port", "9000",
+    ])
+    assert args.command == "project-editor"
+    assert args.host == "127.0.0.1"
+    assert args.port == 9000
