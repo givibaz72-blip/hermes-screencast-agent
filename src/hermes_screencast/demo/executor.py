@@ -27,6 +27,13 @@ class DemoExecutor(Protocol):
     def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
         ...
 
+    def wait_for_not_element_visible(
+        self,
+        selector: str,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        ...
+
     def wait_for_url_contains(self, url_part: str, timeout_seconds: float | None = None) -> None:
         ...
 

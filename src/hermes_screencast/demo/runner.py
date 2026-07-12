@@ -45,6 +45,8 @@ class DemoRunner:
             self._wait(step)
         elif step.action == DemoActionType.WAIT_FOR_ELEMENT:
             self._wait_for_element(step)
+        elif step.action == DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE:
+            self._wait_for_not_element_visible(step)
         elif step.action == DemoActionType.WAIT_FOR_URL_CONTAINS:
             self._wait_for_url_contains(step)
         elif step.action == DemoActionType.WAIT_FOR_TEXT_VISIBLE:
@@ -106,6 +108,10 @@ class DemoRunner:
     def _wait_for_element(self, step: DemoStep) -> None:
         assert step.selector is not None
         self.executor.wait_for_element(step.selector, step.seconds)
+
+    def _wait_for_not_element_visible(self, step: DemoStep) -> None:
+        assert step.selector is not None
+        self.executor.wait_for_not_element_visible(step.selector, step.seconds)
 
     def _wait_for_url_contains(self, step: DemoStep) -> None:
         assert step.url is not None

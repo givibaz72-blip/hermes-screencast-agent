@@ -31,6 +31,15 @@ class RecordingDemoExecutor:
     def wait_for_element(self, selector: str, timeout_seconds: float | None = None) -> None:
         self.calls.append(("wait_for_element", (selector, timeout_seconds)))
 
+    def wait_for_not_element_visible(
+        self,
+        selector: str,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        self.calls.append(
+            ("wait_for_not_element_visible", (selector, timeout_seconds))
+        )
+
     def wait_for_url_contains(self, url_part: str, timeout_seconds: float | None = None) -> None:
         self.calls.append(("wait_for_url_contains", (url_part, timeout_seconds)))
 
@@ -216,6 +225,30 @@ def test_demo_runner_executes_wait_for_element() -> None:
     assert result.completed_steps == 1
     assert executor.calls == [
         ("wait_for_element", ("#hero", 2)),
+    ]
+
+
+def test_demo_runner_executes_wait_for_not_element_visible() -> None:
+    executor = RecordingDemoExecutor()
+    runner = DemoRunner(executor=executor)
+
+    script = DemoScript(
+        title="Wait hidden element runner test",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE,
+                selector="#spinner",
+                seconds=2,
+            ),
+        ],
+    )
+
+    result = runner.run(script)
+
+    assert result.success is True
+    assert result.completed_steps == 1
+    assert executor.calls == [
+        ("wait_for_not_element_visible", ("#spinner", 2)),
     ]
 
 

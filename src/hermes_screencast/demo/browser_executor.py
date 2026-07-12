@@ -264,6 +264,23 @@ class BrowserDemoExecutor:
             timeout_error=f"Timed out waiting for element: {selector}",
         )
 
+    def wait_for_not_element_visible(
+        self,
+        selector: str,
+        timeout_seconds: float | None = None,
+    ) -> None:
+        timeout = (
+            DEFAULT_WAIT_FOR_ELEMENT_SECONDS
+            if timeout_seconds is None
+            else timeout_seconds
+        )
+        self._wait_until(
+            condition=lambda: not self._is_element_visible(selector),
+            timeout_seconds=timeout,
+            poll_seconds=WAIT_FOR_ELEMENT_POLL_SECONDS,
+            timeout_error=f"Timed out waiting for element to disappear: {selector}",
+        )
+
     def _is_element_visible(self, selector: str) -> bool:
         return bool(
             self.runtime.evaluate(

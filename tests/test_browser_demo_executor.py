@@ -223,6 +223,37 @@ def test_browser_demo_executor_wait_for_element_fails_when_timeout_expires() -> 
     assert "document.querySelector('#missing')" in args[0]
 
 
+def test_browser_demo_executor_wait_for_not_element_visible_returns_when_element_is_absent() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=False)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    executor.wait_for_not_element_visible("#spinner", timeout_seconds=2)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "document.querySelector" in args[0]
+    assert "#spinner" in args[0]
+
+
+def test_browser_demo_executor_wait_for_not_element_visible_fails_when_timeout_expires() -> None:
+    runtime = FakeBrowserRuntime(evaluate_result=True)
+    executor = BrowserDemoExecutor(runtime=runtime)
+
+    with pytest.raises(
+        TimeoutError,
+        match="Timed out waiting for element to disappear: #spinner",
+    ):
+        executor.wait_for_not_element_visible("#spinner", timeout_seconds=0)
+
+    assert len(runtime.calls) == 1
+    name, args = runtime.calls[0]
+
+    assert name == "evaluate"
+    assert "#spinner" in args[0]
+
+
 def test_browser_demo_executor_wait_for_url_contains_returns_when_url_matches() -> None:
     runtime = FakeBrowserRuntime(evaluate_result=True)
     executor = BrowserDemoExecutor(runtime=runtime)
