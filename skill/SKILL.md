@@ -1,7 +1,7 @@
 ---
 name: website-screencast
-description: Use when the user asks to record a website screencast, browser walkthrough, SaaS demo, product demo, onboarding video, authenticated web app demo, or polished MP4 recording with cursor movement and automatic zoom.
-version: 1.0.0
+description: Use when the user asks to record a website screencast, browser walkthrough, SaaS demo, product demo, onboarding video, authenticated web app demo, or professional MP4 recording.
+version: 1.1.0
 author: Hermes User
 license: MIT
 platforms: [linux]
@@ -15,35 +15,80 @@ metadata:
 
 ## Overview
 
-Use this skill to create polished browser screencasts from natural-language user requests.
+Use this skill to create professional browser screencasts from user scenarios.
 
-The local recording stack uses Playwright, persistent Chromium profile, Xvfb, FFmpeg x11grab, cursor event logging, automatic zoom processing, and MP4 verification.
+Hermes converts a scenario into a structured DemoScript, executes it in Chromium, displays a smooth visual cursor, renders annotations, records the screen with FFmpeg, and verifies the resulting MP4.
+
+The current output is a clean video recording intended for later editing, narration, music, and final assembly in tools such as CapCut.
 
 ## When to Use
 
-Use this skill when the user asks to record a website demo, SaaS walkthrough, browser workflow, authenticated dashboard, onboarding flow, or MP4 screencast.
+Use this skill when the user asks to record:
+
+- a website or SaaS walkthrough
+- a product feature demonstration
+- an onboarding process
+- a browser workflow
+- an authenticated dashboard
+- a clean MP4 for later video editing
 
 Do not use this skill to bypass CAPTCHA, Cloudflare challenges, 2FA, SMS codes, email codes, or passkeys.
 
-## Workflow
+## Information to Collect
 
-1. Convert the user request into a task JSON.
-2. Use one of three modes: `public`, `authenticated`, or `assisted_login`.
-3. Save the task JSON.
-4. Run `hermes-screencast <task.json>`.
-5. Return the final `_zoomed.mp4` path.
+Before recording, determine:
+
+1. The website, application, or document URL.
+2. The exact sequence of actions to demonstrate.
+3. Whether authentication is required.
+4. Preferred cursor speed, pacing, marker colors, and annotations.
+5. The desired output path.
+
+## DemoScript Workflow
+
+1. Convert the user scenario into a DemoScript JSON file.
+2. Make `goto` the first step.
+3. Validate the scenario:
+
+    hermes-screencast demo-validate scenario.json
+
+4. Review the deterministic action plan:
+
+    hermes-screencast demo-plan scenario.json
+
+5. Record the professional MP4:
+
+    hermes-screencast demo-record scenario.json \
+      --output result.mp4 \
+      --profile product-demo
+
+6. Return the final absolute MP4 path to the user.
+
+## Recording Behavior
+
+- Use natural cursor movement.
+- Move the cursor to an element before clicking, hovering, or filling it.
+- Use short pauses so the viewer can understand each action.
+- Avoid unnecessary idle time.
+- Use narration overlays only when they improve clarity.
+- Use markers, boxes, arrows, and highlights sparingly.
+- Stop and report the failed step when an expected element is missing.
+- Keep the recording clean and suitable for import into CapCut.
 
 ## Authentication Rules
 
 - `public`: no login required.
-- `authenticated`: use the persistent Chrome profile.
-- `assisted_login`: user manually completes CAPTCHA/2FA/login, then recording continues.
+- `authenticated`: use an existing persistent browser profile.
+- `assisted_login`: allow the user to complete login, CAPTCHA, or 2FA manually before recording continues.
 
 Never claim to bypass CAPTCHA or 2FA.
 
 ## Verification Checklist
 
-- [ ] Task JSON includes `url`, `title`, `mode`, and `steps`.
-- [ ] Recorder finishes without error.
-- [ ] Final `_zoomed.mp4` exists.
-- [ ] Final MP4 is not empty.
+- [ ] The DemoScript has a non-empty title.
+- [ ] The first step is `goto`.
+- [ ] At least one recorded step follows `goto`.
+- [ ] Browser actions completed without error.
+- [ ] The final MP4 contains a readable video stream.
+- [ ] The video has a positive duration and valid dimensions.
+- [ ] No Xvfb or FFmpeg recording process remains running.

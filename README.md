@@ -59,11 +59,29 @@ Print a deterministic dry-run plan without launching a browser:
 hermes-screencast demo-plan /tmp/hermes_demo.json
 ```
 
-Run the validated DemoScript in headless browser mode:
+Execute the validated DemoScript without recording:
 
 ```bash
 hermes-screencast demo-run /tmp/hermes_demo.json --headless --profile demo-cli
 ```
+
+Record the DemoScript as a professional 1080p MP4:
+
+```bash
+hermes-screencast demo-record /tmp/hermes_demo.json \
+  --output /tmp/hermes_demo.mp4 \
+  --profile demo-record
+```
+
+Record the maintained public example:
+
+```bash
+hermes-screencast demo-record templates/public.json \
+  --output /tmp/hermes_public_demo.mp4 \
+  --profile public-demo
+```
+
+The first DemoScript step must be `goto`. Hermes opens the page before FFmpeg starts and stops recording before Chromium closes, reducing black frames at the beginning and end.
 
 Run the built-in smoke DemoScript:
 

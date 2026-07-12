@@ -9,6 +9,7 @@ from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
 from .demo.json_loader import load_demo_script
 from .demo.planner import DemoDryRunPlanner
+from .demo.recording import record_demo_script
 from .demo.runner import DemoRunner
 from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
@@ -164,6 +165,22 @@ def run_demo_json_command(args: argparse.Namespace) -> None:
     print(f"✅ DemoScript executed: {result.completed_steps} steps", flush=True)
 
 
+def run_demo_record_command(args: argparse.Namespace) -> Path:
+    script = load_demo_script(Path(args.demo_json))
+
+    output_path = record_demo_script(
+        script,
+        Path(args.output),
+        profile=args.profile,
+    )
+
+    print(
+        f"✅ DemoScript recorded: {output_path}",
+        flush=True,
+    )
+    return output_path
+
+
 def run_demo_init_command(args: argparse.Namespace) -> None:
     write_demo_template(Path(args.output))
 
@@ -217,6 +234,14 @@ def build_parser() -> argparse.ArgumentParser:
     demo_run.add_argument("--headless", action="store_true")
     demo_run.add_argument("--profile", default="demo-json")
 
+    demo_record = sub.add_parser(
+        "demo-record",
+        help="Record a DemoScript JSON file to MP4",
+    )
+    demo_record.add_argument("demo_json")
+    demo_record.add_argument("--output", required=True)
+    demo_record.add_argument("--profile", default="demo-record")
+
     demo_init = sub.add_parser("demo-init", help="Create a starter DemoScript JSON file")
     demo_init.add_argument("output")
 
@@ -253,6 +278,10 @@ def main() -> None:
 
     if args.command == "demo-run":
         run_demo_json_command(args)
+        return
+
+    if args.command == "demo-record":
+        run_demo_record_command(args)
         return
 
     if args.command == "demo-init":

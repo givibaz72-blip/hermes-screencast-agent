@@ -44,6 +44,21 @@ def test_demo_run_parser():
     assert args.profile == "json-demo"
 
 
+def test_demo_record_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-record",
+        "/tmp/demo.json",
+        "--output", "/tmp/demo.mp4",
+        "--profile", "recorded-demo",
+    ])
+
+    assert args.command == "demo-record"
+    assert args.demo_json == "/tmp/demo.json"
+    assert args.output == "/tmp/demo.mp4"
+    assert args.profile == "recorded-demo"
+
+
 def test_demo_init_parser():
     parser = build_parser()
     args = parser.parse_args([
