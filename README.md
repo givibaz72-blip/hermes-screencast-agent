@@ -315,6 +315,9 @@ beats software by a useful margin, and caches the result for the process. Use
 `--encoder software` for deterministic CPU-only output or select a specific
 backend explicitly.
 
+Optional `--fade-in` and `--fade-out` durations add synchronized video and
+audio fades after timeline edits, expressed in seconds.
+
 Record the maintained public example:
 
 ```bash

@@ -213,6 +213,20 @@ def test_render_auto_benchmark_requires_meaningful_speedup(
     assert plan.video_encoder == "h264_qsv"
 
 
+def test_render_applies_synchronized_video_and_audio_fades(tmp_path) -> None:
+    root = create_project(tmp_path)
+    plan = build_render_plan(root, tmp_path / "output.mp4", audio_probe=lambda path: True, fade_in_seconds=0.25, fade_out_seconds=0.5)
+    assert "[outv]fade=t=in:st=0:d=0.250000,fade=t=out:st=7.500000:d=0.500000[fadedv]" in plan.filter_complex
+    assert "[outa]afade=t=in:st=0:d=0.250000,afade=t=out:st=7.500000:d=0.500000[fadeda]" in plan.filter_complex
+    assert "[fadedv]" in plan.command and "[fadeda]" in plan.command
+
+
+def test_render_rejects_fades_longer_than_output(tmp_path) -> None:
+    root = create_project(tmp_path)
+    with pytest.raises(ValueError, match="fit within"):
+        build_render_plan(root, tmp_path / "output.mp4", fade_in_seconds=5, fade_out_seconds=4)
+
+
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
     root = create_project(tmp_path)
     output = tmp_path / "output.mp4"

@@ -458,6 +458,7 @@ def run_project_render_command(args: argparse.Namespace):
             args.project_directory, args.output,
             allow_unrendered=args.allow_unrendered,
             video_encoder=args.encoder,
+            fade_in_seconds=args.fade_in, fade_out_seconds=args.fade_out,
         )
         print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2), flush=True)
         return plan
@@ -465,6 +466,7 @@ def run_project_render_command(args: argparse.Namespace):
         args.project_directory, args.output,
         allow_unrendered=args.allow_unrendered,
         video_encoder=args.encoder,
+        fade_in_seconds=args.fade_in, fade_out_seconds=args.fade_out,
     )
     print(f"HermesProject rendered: {output}", flush=True)
     return output
@@ -674,6 +676,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--encoder", default="auto",
         choices=("auto", "software", "nvenc", "qsv", "amf"),
     )
+    project_render.add_argument("--fade-in", type=float, default=0.0)
+    project_render.add_argument("--fade-out", type=float, default=0.0)
 
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
