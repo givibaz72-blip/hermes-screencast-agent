@@ -90,3 +90,29 @@ def test_demo_plan_parser():
 
     assert args.command == "demo-plan"
     assert args.demo_json == "/tmp/demo.json"
+
+
+def test_demo_generate_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-generate",
+        "/tmp/scenario.txt",
+        "--output", "/tmp/demo.json",
+        "--provider-command", "provider-wrapper",
+        "--provider-arg=--model",
+        "--provider-arg", "local-model",
+        "--target-url", "https://example.com",
+        "--title", "Generated demo",
+        "--preferences", "/tmp/preferences.json",
+        "--constraint", "Do not submit forms",
+    ])
+
+    assert args.command == "demo-generate"
+    assert args.scenario == "/tmp/scenario.txt"
+    assert args.output == "/tmp/demo.json"
+    assert args.provider_command == "provider-wrapper"
+    assert args.provider_arg == ["--model", "local-model"]
+    assert args.target_url == "https://example.com"
+    assert args.title == "Generated demo"
+    assert args.preferences == "/tmp/preferences.json"
+    assert args.constraint == ["Do not submit forms"]

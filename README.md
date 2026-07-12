@@ -10,7 +10,8 @@ MVP bootstrap.
 
 ## What Hermes can do now
 
-Hermes can execute browser demo scenarios through DemoScript.
+Hermes can generate DemoScript from a normal-language scenario and execute the
+resulting browser demo.
 
 A DemoScript is a structured scenario made of steps such as:
 
@@ -39,7 +40,46 @@ DemoScript
   -> Playwright
 ```
 
+Normal-language generation uses a separate provider-neutral path:
+
+```text
+ScenarioPlanningRequest
+  -> ScenarioProvider
+  -> strict JSON parsing
+  -> DemoScript validation
+```
+
 ## Quick start: DemoScript CLI
+
+Write a normal-language scenario:
+
+```text
+Open the product page, highlight the main heading, and explain the primary action.
+```
+
+Generate a validated DemoScript through a provider adapter:
+
+```bash
+hermes-screencast demo-generate scenario.txt \
+  --target-url https://example.com \
+  --title "Product overview" \
+  --provider-command /path/to/hermes-provider \
+  --provider-arg=--model \
+  --provider-arg=local-model \
+  --output /tmp/hermes_demo.json
+```
+
+Hermes is provider-neutral. The provider command receives the complete planning
+prompt through standard input and must write exactly one DemoScript JSON object
+to standard output. Markdown fences and explanatory text are rejected. The
+command is started directly without a shell. Configure provider credentials in
+the adapter environment; never put API keys in scenario files or command-line
+examples.
+
+Optional generation inputs include repeated `--constraint` values and a
+`--preferences` path containing a JSON object. User-supplied title and
+preferences take precedence over provider defaults. A supplied target URL must
+exactly match the first generated `goto` step.
 
 Create a starter DemoScript JSON file:
 
