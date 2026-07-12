@@ -337,6 +337,11 @@ with short synchronized fades, automatic encoder selection, and normalized
 audio when present. All generated tracks remain editable in HermesProject.
 Use `--preset keep` to preserve an existing custom composition.
 
+The editor foundation exposes `read_editor_project` and `save_editor_project`
+for validated composition/timeline editing. Snapshots carry a SHA-256 ETag;
+stale saves are rejected and accepted edits replace `project.json` atomically
+without allowing the editor to mutate asset references.
+
 Record the maintained public example:
 
 ```bash
