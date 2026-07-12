@@ -8,6 +8,7 @@ from typing import Any
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
+from .demo.discovery import PageDiscoveryService
 from .demo.json_loader import demo_script_to_dict, load_demo_script
 from .demo.planner import DemoDryRunPlanner
 from .demo.recording import record_demo_script
@@ -207,13 +208,23 @@ def run_demo_generate_command(args: argparse.Namespace) -> Path:
     if not scenario_path.exists():
         raise FileNotFoundError(scenario_path)
 
-    preferences = _load_json_object(Path(args.preferences)) if args.preferences else {}
+    preferences = (
+        _load_json_object(Path(args.preferences), "Preferences")
+        if args.preferences
+        else {}
+    )
+    discovery = (
+        _load_json_object(Path(args.discovery), "Discovery")
+        if args.discovery
+        else None
+    )
     request = ScenarioPlanningRequest(
         scenario=scenario_path.read_text(encoding="utf-8"),
         target_url=args.target_url,
         title=args.title,
         preferences=preferences,
         constraints=tuple(args.constraint),
+        discovery=discovery,
     )
     provider = CommandScenarioProvider(
         command=(args.provider_command, *args.provider_arg),
@@ -230,14 +241,44 @@ def run_demo_generate_command(args: argparse.Namespace) -> Path:
     return output_path
 
 
-def _load_json_object(path: Path) -> dict[str, Any]:
+def run_demo_discover_command(
+    args: argparse.Namespace,
+    runtime_factory=None,
+    discovery_factory=None,
+) -> Path:
+    if runtime_factory is None:
+        runtime_factory = BrowserRuntime
+    if discovery_factory is None:
+        discovery_factory = PageDiscoveryService
+
+    config = BrowserRuntimeConfig(
+        profile=args.profile,
+        headless=args.headless,
+    )
+    with runtime_factory(config=config) as runtime:
+        report = discovery_factory(runtime=runtime).discover(
+            args.url,
+            max_elements=args.max_elements,
+        )
+
+    output_path = Path(args.output).expanduser().resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(report.to_dict(), ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(f"Page discovery written: {output_path}", flush=True)
+    return output_path
+
+
+def _load_json_object(path: Path, field_name: str) -> dict[str, Any]:
     resolved_path = path.expanduser().resolve()
     if not resolved_path.exists():
         raise FileNotFoundError(resolved_path)
 
     payload = json.loads(resolved_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("Preferences JSON root must be an object")
+        raise ValueError(f"{field_name} JSON root must be an object")
     return payload
 
 
@@ -307,7 +348,18 @@ def build_parser() -> argparse.ArgumentParser:
     demo_generate.add_argument("--target-url")
     demo_generate.add_argument("--title")
     demo_generate.add_argument("--preferences")
+    demo_generate.add_argument("--discovery")
     demo_generate.add_argument("--constraint", action="append", default=[])
+
+    demo_discover = sub.add_parser(
+        "demo-discover",
+        help="Catalog visible interactive elements before planning a DemoScript",
+    )
+    demo_discover.add_argument("url")
+    demo_discover.add_argument("--output", required=True)
+    demo_discover.add_argument("--profile", default="demo-discovery")
+    demo_discover.add_argument("--headless", action="store_true")
+    demo_discover.add_argument("--max-elements", type=int, default=250)
 
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
@@ -356,6 +408,10 @@ def main() -> None:
 
     if args.command == "demo-generate":
         run_demo_generate_command(args)
+        return
+
+    if args.command == "demo-discover":
+        run_demo_discover_command(args)
         return
 
     if args.legacy_task_json:

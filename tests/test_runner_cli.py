@@ -104,6 +104,7 @@ def test_demo_generate_parser():
         "--target-url", "https://example.com",
         "--title", "Generated demo",
         "--preferences", "/tmp/preferences.json",
+        "--discovery", "/tmp/discovery.json",
         "--constraint", "Do not submit forms",
     ])
 
@@ -115,4 +116,24 @@ def test_demo_generate_parser():
     assert args.target_url == "https://example.com"
     assert args.title == "Generated demo"
     assert args.preferences == "/tmp/preferences.json"
+    assert args.discovery == "/tmp/discovery.json"
     assert args.constraint == ["Do not submit forms"]
+
+
+def test_demo_discover_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-discover",
+        "https://example.com",
+        "--output", "/tmp/discovery.json",
+        "--profile", "discovery-test",
+        "--headless",
+        "--max-elements", "50",
+    ])
+
+    assert args.command == "demo-discover"
+    assert args.url == "https://example.com"
+    assert args.output == "/tmp/discovery.json"
+    assert args.profile == "discovery-test"
+    assert args.headless is True
+    assert args.max_elements == 50

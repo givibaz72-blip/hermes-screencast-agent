@@ -44,6 +44,7 @@ def test_demo_generate_writes_deterministic_validated_json(tmp_path, monkeypatch
         target_url="https://example.com",
         title="Product demo",
         preferences=str(preferences_path),
+        discovery=None,
         constraint=["Do not submit forms"],
     )
 
@@ -72,6 +73,7 @@ def test_demo_generate_rejects_non_object_preferences(tmp_path) -> None:
         target_url=None,
         title=None,
         preferences=str(preferences_path),
+        discovery=None,
         constraint=[],
     )
 
