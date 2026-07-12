@@ -37,6 +37,8 @@ class RenderPlan:
     estimated_duration_seconds: float
     has_audio: bool
     video_encoder: str
+    fade_in_seconds: float
+    fade_out_seconds: float
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -46,6 +48,8 @@ class RenderPlan:
             "estimated_duration_seconds": self.estimated_duration_seconds,
             "has_audio": self.has_audio,
             "video_encoder": self.video_encoder,
+            "fade_in_seconds": self.fade_in_seconds,
+            "fade_out_seconds": self.fade_out_seconds,
         }
 
 
@@ -58,6 +62,8 @@ def build_render_plan(
     audio_probe: Callable[[Path], bool] | None = None,
     video_encoder: str = "software",
     encoder_probe: Callable[[str], bool] | None = None,
+    fade_in_seconds: float = 0.0,
+    fade_out_seconds: float = 0.0,
 ) -> RenderPlan:
     root = Path(project_directory).expanduser().resolve()
     project = validate_hermes_project(root)
@@ -109,6 +115,7 @@ def build_render_plan(
         float(time_track["summary"]["estimated_duration_seconds"])
         if time_track is not None else source_duration
     )
+    _validate_fades(fade_in_seconds, fade_out_seconds, estimated)
     graph = _build_filter_graph(
         project.composition,
         camera_track,
@@ -124,12 +131,19 @@ def build_render_plan(
     selected_encoder = _select_video_encoder(video_encoder, encoder_probe)
     if has_audio:
         graph += ";" + _audio_filter_graph(time_track, source_duration)
+    video_label, audio_label = "outv", "outa"
+    if fade_in_seconds or fade_out_seconds:
+        video_label = "fadedv"
+        graph += ";" + _fade_filter_graph("outv", video_label, estimated, fade_in_seconds, fade_out_seconds, audio=False)
+        if has_audio:
+            audio_label = "fadeda"
+            graph += ";" + _fade_filter_graph("outa", audio_label, estimated, fade_in_seconds, fade_out_seconds, audio=True)
     command_parts = [
         ffmpeg, "-y", "-nostdin", "-loglevel", "error", "-i", str(source),
-        "-filter_complex", graph, "-map", "[outv]",
+        "-filter_complex", graph, "-map", f"[{video_label}]",
     ]
     if has_audio:
-        command_parts.extend(["-map", "[outa]", "-c:a", "aac", "-b:a", "192k"])
+        command_parts.extend(["-map", f"[{audio_label}]", "-c:a", "aac", "-b:a", "192k"])
     else:
         command_parts.append("-an")
     command_parts.extend(_video_encoder_args(selected_encoder))
@@ -137,7 +151,7 @@ def build_render_plan(
     command = tuple(command_parts)
     return RenderPlan(
         source, output, command, graph, unsupported, estimated, has_audio,
-        selected_encoder,
+        selected_encoder, fade_in_seconds, fade_out_seconds,
     )
 
 
@@ -147,12 +161,15 @@ def render_hermes_project(
     *,
     allow_unrendered: bool = False,
     video_encoder: str = "auto",
+    fade_in_seconds: float = 0.0,
+    fade_out_seconds: float = 0.0,
     runner: Callable[..., Any] = subprocess.run,
     verifier: Callable[[Path], Path] = verify_mp4,
 ) -> Path:
     plan = build_render_plan(
         project_directory, output_file, allow_unrendered=allow_unrendered,
         video_encoder=video_encoder,
+        fade_in_seconds=fade_in_seconds, fade_out_seconds=fade_out_seconds,
     )
     plan.output.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -421,6 +438,24 @@ def _audio_filter_graph(
         labels.append(f"[{label}]")
     filters.append(f"{''.join(labels)}concat=n={len(labels)}:v=0:a=1[outa]")
     return ";".join(filters)
+
+
+def _validate_fades(fade_in: float, fade_out: float, duration: float) -> None:
+    for name, value in (("fade in", fade_in), ("fade out", fade_out)):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"Render {name} duration must be finite and non-negative")
+    if fade_in + fade_out > duration:
+        raise ValueError("Render fades must fit within the output duration")
+
+
+def _fade_filter_graph(input_label: str, output_label: str, duration: float, fade_in: float, fade_out: float, *, audio: bool) -> str:
+    prefix = "a" if audio else ""
+    parts = []
+    if fade_in:
+        parts.append(f"{prefix}fade=t=in:st=0:d={fade_in:.6f}")
+    if fade_out:
+        parts.append(f"{prefix}fade=t=out:st={duration-fade_out:.6f}:d={fade_out:.6f}")
+    return f"[{input_label}]{','.join(parts)}[{output_label}]"
 
 
 def _has_audio_stream(source: Path) -> bool:

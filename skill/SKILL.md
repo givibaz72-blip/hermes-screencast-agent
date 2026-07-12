@@ -146,6 +146,9 @@ Before recording, determine:
     specific verified hardware backend is required. Verify the generated MP4
     before delivery.
 
+    Add short `--fade-in` and `--fade-out` values only when opening and closing
+    polish is appropriate for the requested deliverable.
+
     Completed click anchors automatically receive a short vector feedback ring;
     keep cursor motion enabled when visible interaction feedback is expected.
 17. Return the final absolute MP4, event-log, project, and preview paths.
