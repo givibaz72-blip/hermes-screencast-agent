@@ -130,7 +130,12 @@ Before recording, determine:
 
     Review the generated speed/cut segments and estimated duration. Keep source
     timestamps and the source MP4 unchanged.
-15. Return the final absolute MP4, event-log, and project paths to the user.
+15. Generate the self-contained timeline preview for review:
+
+    hermes-screencast project-preview product.hermes
+
+    Review composition, durations, and every generated track before rendering.
+16. Return the final absolute MP4, event-log, project, and preview paths.
 
 ## Recording Behavior
 

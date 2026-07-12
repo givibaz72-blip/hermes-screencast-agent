@@ -34,6 +34,7 @@ from .framing import (
     available_framing_presets,
 )
 from .planner import make_basic_task
+from .preview import write_project_preview
 from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
 from .verifier import verify_mp4
@@ -444,6 +445,12 @@ def run_project_auto_edit_command(args: argparse.Namespace) -> dict[str, Any]:
     return track
 
 
+def run_project_preview_command(args: argparse.Namespace) -> Path:
+    output = write_project_preview(args.project_directory, args.output)
+    print(f"HermesProject preview written: {output}", flush=True)
+    return output
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -629,6 +636,13 @@ def build_parser() -> argparse.ArgumentParser:
     project_auto_edit.add_argument("--context", type=float, default=0.25)
     project_auto_edit.add_argument("--minimum-edit", type=float, default=0.2)
 
+    project_preview = sub.add_parser(
+        "project-preview",
+        help="Write a self-contained HTML composition and timeline preview",
+    )
+    project_preview.add_argument("project_directory")
+    project_preview.add_argument("--output")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -716,6 +730,10 @@ def main() -> None:
 
     if args.command == "project-auto-edit":
         run_project_auto_edit_command(args)
+        return
+
+    if args.command == "project-preview":
+        run_project_preview_command(args)
         return
 
     if args.legacy_task_json:
