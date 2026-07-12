@@ -147,6 +147,24 @@ viewport state; and final cursor position for visible interactions. Form values
 and URL query values are never stored. Failed recordings retain their event log
 for diagnosis.
 
+Create a portable editing project from verified recording artifacts:
+
+```bash
+hermes-screencast project-init /tmp/product.hermes \
+  --title "Product demo" \
+  --video /tmp/hermes_demo.mp4 \
+  --events /tmp/hermes_demo.events.json \
+  --script /tmp/hermes_demo.json
+
+hermes-screencast project-validate /tmp/product.hermes
+```
+
+`HermesProject` copies assets under the project directory and records relative
+paths, sizes, and SHA-256 checksums in `project.json`. Validation rejects missing,
+modified, absolute, or path-traversing assets. The initial composition manifest
+contains stable canvas, background, frame, and empty timeline contracts for
+future non-destructive zoom and cursor processing.
+
 Record the maintained public example:
 
 ```bash

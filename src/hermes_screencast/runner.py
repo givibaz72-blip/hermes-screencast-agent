@@ -21,6 +21,7 @@ from .demo.scenario_planner import (
 )
 from .demo.smoke import run_smoke_demo
 from .planner import make_basic_task
+from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
 from .verifier import verify_mp4
 
@@ -290,6 +291,23 @@ def _load_json_object(path: Path, field_name: str) -> dict[str, Any]:
     return payload
 
 
+def run_project_init_command(args: argparse.Namespace) -> Path:
+    path = create_hermes_project(
+        args.project_directory,
+        title=args.title,
+        video_file=args.video,
+        events_file=args.events,
+        script_file=args.script,
+    )
+    print(f"HermesProject created: {path}", flush=True)
+    return path
+
+
+def run_project_validate_command(args: argparse.Namespace) -> None:
+    project = validate_hermes_project(args.project_directory)
+    print(f"HermesProject valid: {project.title}", flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -370,6 +388,16 @@ def build_parser() -> argparse.ArgumentParser:
     demo_discover.add_argument("--headless", action="store_true")
     demo_discover.add_argument("--max-elements", type=int, default=250)
 
+    project_init = sub.add_parser("project-init", help="Create a portable HermesProject")
+    project_init.add_argument("project_directory")
+    project_init.add_argument("--title", required=True)
+    project_init.add_argument("--video", required=True)
+    project_init.add_argument("--events", required=True)
+    project_init.add_argument("--script", required=True)
+
+    project_validate = sub.add_parser("project-validate", help="Validate HermesProject assets")
+    project_validate.add_argument("project_directory")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -421,6 +449,14 @@ def main() -> None:
 
     if args.command == "demo-discover":
         run_demo_discover_command(args)
+        return
+
+    if args.command == "project-init":
+        run_project_init_command(args)
+        return
+
+    if args.command == "project-validate":
+        run_project_validate_command(args)
         return
 
     if args.legacy_task_json:

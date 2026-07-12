@@ -139,3 +139,20 @@ def test_demo_discover_parser():
     assert args.profile == "discovery-test"
     assert args.headless is True
     assert args.max_elements == 50
+
+
+def test_project_init_parser():
+    args = build_parser().parse_args([
+        "project-init", "/tmp/demo.hermes", "--title", "Demo",
+        "--video", "/tmp/demo.mp4", "--events", "/tmp/demo.events.json",
+        "--script", "/tmp/demo.json",
+    ])
+    assert args.command == "project-init"
+    assert args.title == "Demo"
+    assert args.video == "/tmp/demo.mp4"
+
+
+def test_project_validate_parser():
+    args = build_parser().parse_args(["project-validate", "/tmp/demo.hermes"])
+    assert args.command == "project-validate"
+    assert args.project_directory == "/tmp/demo.hermes"
