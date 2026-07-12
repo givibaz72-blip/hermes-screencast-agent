@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .auto_zoom import AutoZoomSettings, apply_auto_zoom
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
 from .demo.browser_executor import BrowserDemoExecutor
@@ -308,6 +309,25 @@ def run_project_validate_command(args: argparse.Namespace) -> None:
     print(f"HermesProject valid: {project.title}", flush=True)
 
 
+def run_project_auto_zoom_command(args: argparse.Namespace) -> dict[str, Any]:
+    track = apply_auto_zoom(
+        args.project_directory,
+        settings=AutoZoomSettings(
+            scale=args.scale,
+            lead_seconds=args.lead,
+            hold_seconds=args.hold,
+            transition_seconds=args.transition,
+            target_margin=args.target_margin,
+            merge_distance=args.merge_distance,
+        ),
+    )
+    print(
+        f"HermesProject auto zoom generated: {len(track['segments'])} segments",
+        flush=True,
+    )
+    return track
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -398,6 +418,18 @@ def build_parser() -> argparse.ArgumentParser:
     project_validate = sub.add_parser("project-validate", help="Validate HermesProject assets")
     project_validate.add_argument("project_directory")
 
+    project_auto_zoom = sub.add_parser(
+        "project-auto-zoom",
+        help="Generate a non-destructive camera track from recorded clicks",
+    )
+    project_auto_zoom.add_argument("project_directory")
+    project_auto_zoom.add_argument("--scale", type=float, default=1.35)
+    project_auto_zoom.add_argument("--lead", type=float, default=0.25)
+    project_auto_zoom.add_argument("--hold", type=float, default=0.65)
+    project_auto_zoom.add_argument("--transition", type=float, default=0.35)
+    project_auto_zoom.add_argument("--target-margin", type=float, default=80.0)
+    project_auto_zoom.add_argument("--merge-distance", type=float, default=120.0)
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -457,6 +489,10 @@ def main() -> None:
 
     if args.command == "project-validate":
         run_project_validate_command(args)
+        return
+
+    if args.command == "project-auto-zoom":
+        run_project_auto_zoom_command(args)
         return
 
     if args.legacy_task_json:

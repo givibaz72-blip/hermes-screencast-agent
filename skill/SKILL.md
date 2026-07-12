@@ -98,7 +98,14 @@ Before recording, determine:
 
     hermes-screencast project-validate product.hermes
 
-10. Return the final absolute MP4, event-log, and project paths to the user.
+10. Generate the editable automatic camera track when click geometry is
+    available:
+
+    hermes-screencast project-auto-zoom product.hermes
+
+    This updates `project.json` only. It must not modify or re-encode the source
+    MP4. Re-running it replaces the generated `auto-zoom` track.
+11. Return the final absolute MP4, event-log, and project paths to the user.
 
 ## Recording Behavior
 

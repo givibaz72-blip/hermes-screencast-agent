@@ -50,6 +50,7 @@ def test_create_project_copies_and_validates_portable_assets(tmp_path) -> None:
     project = validate_hermes_project(root)
     assert project.title == "Product demo"
     assert set(project.assets) == {"video", "events", "script"}
+    assert project.timeline == {"tracks": []}
     assert (root / "assets" / "source.mp4").read_bytes() == b"fake mp4"
     assert all(not asset.path.startswith("/") for asset in project.assets.values())
 
@@ -104,3 +105,31 @@ def test_project_refuses_to_overwrite_existing_manifest(tmp_path) -> None:
             root, title="Demo", video_file=video, events_file=events,
             script_file=script, video_verifier=lambda path: path,
         )
+
+
+def test_project_rejects_overlapping_camera_segments(tmp_path) -> None:
+    video, events, script = source_files(tmp_path)
+    root = tmp_path / "overlap.hermes"
+    manifest = create_hermes_project(
+        root, title="Demo", video_file=video, events_file=events, script_file=script,
+        video_verifier=lambda path: path,
+    )
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    settings = {
+        "scale": 1.35, "lead_seconds": 0.25, "hold_seconds": 0.65,
+        "transition_seconds": 0.35, "target_margin": 80,
+        "merge_distance": 120, "easing": "ease_in_out_cubic",
+    }
+    segment = {
+        "start_seconds": 0.5, "focus_seconds": 0.75,
+        "hold_until_seconds": 1.0, "end_seconds": 1.5, "scale": 1.35,
+        "focus": {"x": 960, "y": 540}, "source_event_sequences": [1],
+    }
+    payload["timeline"] = {"tracks": [{
+        "id": "auto-zoom", "type": "camera.zoom", "source": "automatic",
+        "settings": settings, "segments": [segment, dict(segment)],
+    }]}
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must not overlap"):
+        load_hermes_project(root)

@@ -157,13 +157,36 @@ hermes-screencast project-init /tmp/product.hermes \
   --script /tmp/hermes_demo.json
 
 hermes-screencast project-validate /tmp/product.hermes
+
+hermes-screencast project-auto-zoom /tmp/product.hermes
 ```
 
 `HermesProject` copies assets under the project directory and records relative
 paths, sizes, and SHA-256 checksums in `project.json`. Validation rejects missing,
 modified, absolute, or path-traversing assets. The initial composition manifest
-contains stable canvas, background, frame, and empty timeline contracts for
-future non-destructive zoom and cursor processing.
+contains stable canvas, background, frame, and timeline contracts for
+non-destructive processing.
+
+`project-auto-zoom` reads completed click events and target bounds from the
+synchronized event log, then writes an editable `camera.zoom` track to
+`project.json`. The source MP4 is never modified or re-encoded. Camera focus is
+clamped to the video frame, large targets reduce the requested scale so they
+remain visible, nearby clicks are merged, and overlapping clicks in distant
+areas receive consecutive segments. Running the command again replaces only
+the generated `auto-zoom` track.
+
+The defaults use a 1.35x zoom with cubic easing. They can be tuned without
+recording again:
+
+```bash
+hermes-screencast project-auto-zoom /tmp/product.hermes \
+  --scale 1.45 \
+  --lead 0.25 \
+  --hold 0.8 \
+  --transition 0.35 \
+  --target-margin 80 \
+  --merge-distance 120
+```
 
 Record the maintained public example:
 
