@@ -150,6 +150,21 @@ def test_render_applies_all_annotation_kinds_after_composition(tmp_path) -> None
     assert plan.unsupported_tracks == ()
 
 
+def test_render_keeps_audio_synchronized_with_time_edits(tmp_path) -> None:
+    root = create_project(tmp_path)
+    apply_auto_edit(root)
+    plan = build_render_plan(
+        root, tmp_path / "output.mp4", audio_probe=lambda path: True
+    )
+
+    assert "[0:a]atrim=start=" in plan.filter_complex
+    assert "atempo=4.000000" in plan.filter_complex
+    assert "concat=n=" in plan.filter_complex
+    assert "[outa]" in plan.command
+    assert "aac" in plan.command
+    assert plan.has_audio is True
+
+
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
     root = create_project(tmp_path)
     output = tmp_path / "output.mp4"

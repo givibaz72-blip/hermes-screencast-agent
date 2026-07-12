@@ -300,8 +300,10 @@ cubic easing around recorded interaction geometry and remain synchronized when
 later edits remove or accelerate source-time ranges. The renderer exports
 H.264/yuv420p with fast-start metadata and verifies the MP4.
 
-Use `--dry-run` to inspect the exact FFmpeg plan. This stage does not export
-audio.
+Use `--dry-run` to inspect the exact FFmpeg plan. When the source contains an
+audio stream, the renderer applies the same trim, cut, and speed timeline to
+audio and video, then exports synchronized AAC audio. Silent sources remain
+silent without requiring a separate option.
 
 Record the maintained public example:
 
