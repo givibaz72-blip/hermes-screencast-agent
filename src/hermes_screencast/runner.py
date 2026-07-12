@@ -5,6 +5,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .annotations import (
+    ANNOTATION_KINDS,
+    add_project_annotation,
+    list_project_annotations,
+    remove_project_annotation,
+)
 from .auto_zoom import AutoZoomSettings, apply_auto_zoom
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
@@ -372,6 +378,50 @@ def run_project_style_command(args: argparse.Namespace) -> dict[str, Any]:
     return composition
 
 
+def run_project_annotate_command(args: argparse.Namespace) -> dict[str, Any]:
+    annotation = add_project_annotation(
+        args.project_directory,
+        kind=args.kind,
+        start_seconds=args.start,
+        end_seconds=args.end,
+        annotation_id=args.annotation_id,
+        x=args.x,
+        y=args.y,
+        width=args.width,
+        height=args.height,
+        to_x=args.to_x,
+        to_y=args.to_y,
+        text=args.text,
+        color=args.color,
+        background_color=args.background_color,
+        opacity=args.opacity,
+        stroke_width=args.stroke_width,
+        corner_radius=args.corner_radius,
+        font_size=args.font_size,
+        font_weight=args.font_weight,
+        padding=args.padding,
+        head_size=args.head_size,
+    )
+    print(f"HermesProject annotation added: {annotation['id']}", flush=True)
+    return annotation
+
+
+def run_project_annotation_remove_command(args: argparse.Namespace) -> dict[str, Any]:
+    annotation = remove_project_annotation(
+        args.project_directory, args.annotation_id
+    )
+    print(f"HermesProject annotation removed: {annotation['id']}", flush=True)
+    return annotation
+
+
+def run_project_annotation_list_command(
+    args: argparse.Namespace,
+) -> tuple[dict[str, Any], ...]:
+    annotations = list_project_annotations(args.project_directory)
+    print(json.dumps(list(annotations), ensure_ascii=False, indent=2), flush=True)
+    return annotations
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -507,6 +557,45 @@ def build_parser() -> argparse.ArgumentParser:
     )
     project_style.set_defaults(shadow_enabled=None)
 
+    project_annotate = sub.add_parser(
+        "project-annotate",
+        help="Add a non-destructive annotation to HermesProject",
+    )
+    project_annotate.add_argument("project_directory")
+    project_annotate.add_argument("--kind", required=True, choices=ANNOTATION_KINDS)
+    project_annotate.add_argument("--start", required=True, type=float)
+    project_annotate.add_argument("--end", required=True, type=float)
+    project_annotate.add_argument("--id", dest="annotation_id")
+    project_annotate.add_argument("--x", type=float)
+    project_annotate.add_argument("--y", type=float)
+    project_annotate.add_argument("--width", type=float)
+    project_annotate.add_argument("--height", type=float)
+    project_annotate.add_argument("--to-x", type=float)
+    project_annotate.add_argument("--to-y", type=float)
+    project_annotate.add_argument("--text")
+    project_annotate.add_argument("--color")
+    project_annotate.add_argument("--background-color")
+    project_annotate.add_argument("--opacity", type=float)
+    project_annotate.add_argument("--stroke-width", type=float)
+    project_annotate.add_argument("--corner-radius", type=float)
+    project_annotate.add_argument("--font-size", type=float)
+    project_annotate.add_argument("--font-weight", type=int)
+    project_annotate.add_argument("--padding", type=float)
+    project_annotate.add_argument("--head-size", type=float)
+
+    project_annotation_remove = sub.add_parser(
+        "project-annotation-remove",
+        help="Remove a HermesProject annotation by id",
+    )
+    project_annotation_remove.add_argument("project_directory")
+    project_annotation_remove.add_argument("annotation_id")
+
+    project_annotation_list = sub.add_parser(
+        "project-annotation-list",
+        help="List HermesProject annotations as JSON",
+    )
+    project_annotation_list.add_argument("project_directory")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -578,6 +667,18 @@ def main() -> None:
 
     if args.command == "project-style":
         run_project_style_command(args)
+        return
+
+    if args.command == "project-annotate":
+        run_project_annotate_command(args)
+        return
+
+    if args.command == "project-annotation-remove":
+        run_project_annotation_remove_command(args)
+        return
+
+    if args.command == "project-annotation-list":
+        run_project_annotation_list_command(args)
         return
 
     if args.legacy_task_json:
