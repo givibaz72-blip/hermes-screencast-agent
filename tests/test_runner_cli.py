@@ -219,3 +219,16 @@ def test_project_annotation_management_parsers():
     ])
     assert remove.annotation_id == "note-1"
     assert listing.command == "project-annotation-list"
+
+
+def test_project_auto_edit_parser():
+    args = build_parser().parse_args([
+        "project-auto-edit", "/tmp/demo.hermes",
+        "--preserve-threshold", "1.5", "--cut-threshold", "5",
+        "--speed", "6", "--context", "0.3", "--minimum-edit", "0.25",
+    ])
+    assert args.command == "project-auto-edit"
+    assert args.preserve_threshold == 1.5
+    assert args.cut_threshold == 5
+    assert args.speed == 6
+    assert args.context == 0.3

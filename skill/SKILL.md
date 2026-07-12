@@ -124,7 +124,13 @@ Before recording, determine:
 
     Use stable IDs when an annotation may need later removal. Prefer a small
     number of purposeful text, box, highlight, or arrow overlays.
-14. Return the final absolute MP4, event-log, and project paths to the user.
+14. Generate a non-destructive time edit when long pauses reduce clarity:
+
+    hermes-screencast project-auto-edit product.hermes
+
+    Review the generated speed/cut segments and estimated duration. Keep source
+    timestamps and the source MP4 unchanged.
+15. Return the final absolute MP4, event-log, and project paths to the user.
 
 ## Recording Behavior
 

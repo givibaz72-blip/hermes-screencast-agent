@@ -254,6 +254,22 @@ hermes-screencast project-annotation-list /tmp/product.hermes
 hermes-screencast project-annotation-remove /tmp/product.hermes intro-title
 ```
 
+Generate a non-destructive automatic time edit from synchronized events:
+
+```bash
+hermes-screencast project-auto-edit /tmp/product.hermes \
+  --preserve-threshold 1.25 \
+  --cut-threshold 4.0 \
+  --speed 4.0 \
+  --context 0.25
+```
+
+Short pauses remain untouched. Medium idle gaps and explicit `wait` steps get
+`speed` segments, while long gaps receive `cut` segments. Context is preserved
+on both sides so actions are not clipped. The `time.edit` track retains source
+timestamps and reports source, estimated, and removed duration; it never edits
+or re-encodes the MP4 itself.
+
 Record the maintained public example:
 
 ```bash
