@@ -110,6 +110,14 @@ class DemoDryRunPlanner:
             )
             return f"Wait for element: {step.selector}{timeout}"
 
+        if step.action == DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE:
+            timeout = (
+                ""
+                if step.seconds is None
+                else f" for up to {step.seconds} seconds"
+            )
+            return f"Wait for element to disappear: {step.selector}{timeout}"
+
         if step.action == DemoActionType.WAIT_FOR_URL_CONTAINS:
             timeout = (
                 ""

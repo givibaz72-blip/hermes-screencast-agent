@@ -163,6 +163,26 @@ def test_demo_dry_run_planner_summarizes_wait_for_element() -> None:
     assert plan.steps[0].details == {"selector": "#hero", "seconds": 2}
 
 
+def test_demo_dry_run_planner_summarizes_wait_for_not_element_visible() -> None:
+    script = DemoScript(
+        title="Wait hidden element plan",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE,
+                selector="#spinner",
+                seconds=2,
+            ),
+        ],
+    )
+
+    plan = DemoDryRunPlanner().plan(script)
+
+    assert plan.steps[0].summary == (
+        "Wait for element to disappear: #spinner for up to 2 seconds"
+    )
+    assert plan.steps[0].details == {"selector": "#spinner", "seconds": 2}
+
+
 def test_demo_dry_run_planner_summarizes_wait_for_url_contains() -> None:
     script = DemoScript(
         title="Wait URL plan",

@@ -13,6 +13,7 @@ class DemoActionType(str, Enum):
     SCROLL = "scroll"
     WAIT = "wait"
     WAIT_FOR_ELEMENT = "wait_for_element"
+    WAIT_FOR_NOT_ELEMENT_VISIBLE = "wait_for_not_element_visible"
     WAIT_FOR_URL_CONTAINS = "wait_for_url_contains"
     WAIT_FOR_TEXT_VISIBLE = "wait_for_text_visible"
     WAIT_FOR_NOT_TEXT_VISIBLE = "wait_for_not_text_visible"
@@ -97,6 +98,16 @@ class DemoScript:
                 raise ValueError(f"Step {index}: wait_for_element requires selector")
             if step.seconds is not None and step.seconds < 0:
                 raise ValueError(f"Step {index}: wait_for_element requires non-negative seconds")
+
+        if step.action == DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE:
+            if not step.selector:
+                raise ValueError(
+                    f"Step {index}: wait_for_not_element_visible requires selector"
+                )
+            if step.seconds is not None and step.seconds < 0:
+                raise ValueError(
+                    f"Step {index}: wait_for_not_element_visible requires non-negative seconds"
+                )
 
         if step.action == DemoActionType.WAIT_FOR_URL_CONTAINS:
             if not step.url:

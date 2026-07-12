@@ -163,6 +163,38 @@ def test_wait_for_element_rejects_negative_seconds():
         script.validate()
 
 
+def test_wait_for_not_element_visible_requires_selector():
+    script = DemoScript(
+        title="Broken script",
+        steps=[DemoStep(action=DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE)],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="wait_for_not_element_visible requires selector",
+    ):
+        script.validate()
+
+
+def test_wait_for_not_element_visible_rejects_negative_seconds():
+    script = DemoScript(
+        title="Broken script",
+        steps=[
+            DemoStep(
+                action=DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE,
+                selector="#spinner",
+                seconds=-1,
+            ),
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="wait_for_not_element_visible requires non-negative seconds",
+    ):
+        script.validate()
+
+
 def test_wait_for_url_contains_requires_url():
     script = DemoScript(
         title="Broken script",
