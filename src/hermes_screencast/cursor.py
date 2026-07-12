@@ -160,6 +160,10 @@ class VisualCursor:
     _x: float = 0.0
     _y: float = 0.0
 
+    @property
+    def position(self) -> tuple[float, float]:
+        return self._x, self._y
+
     def install(self) -> None:
         """Install the cursor in the current page and future documents."""
         if self._installed:

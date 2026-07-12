@@ -16,7 +16,7 @@ def test_run_demo_record_command_connects_loader_and_recorder(
     script = object()
 
     loaded_paths: list[Path] = []
-    recorded_calls: list[tuple[object, Path, str]] = []
+    recorded_calls: list[tuple[object, Path, str, str | None]] = []
 
     def fake_load_demo_script(path: Path):
         loaded_paths.append(path)
@@ -27,9 +27,10 @@ def test_run_demo_record_command_connects_loader_and_recorder(
         output_file: Path,
         *,
         profile: str,
+        events_output_file: str | None,
     ) -> Path:
         recorded_calls.append(
-            (loaded_script, output_file, profile)
+            (loaded_script, output_file, profile, events_output_file)
         )
         return output_file.resolve()
 
@@ -48,15 +49,20 @@ def test_run_demo_record_command_connects_loader_and_recorder(
         demo_json=str(demo_json),
         output=str(output),
         profile="saas-demo",
+        events_output=None,
     )
 
     result = runner.run_demo_record_command(args)
 
     assert loaded_paths == [demo_json]
     assert recorded_calls == [
-        (script, output, "saas-demo"),
+        (script, output, "saas-demo", None),
     ]
     assert result == output.resolve()
 
     captured = capsys.readouterr()
+    assert (
+        f"Recording events written: {output.with_suffix('.events.json').resolve()}"
+        in captured.out
+    )
     assert f"✅ DemoScript recorded: {output.resolve()}" in captured.out
