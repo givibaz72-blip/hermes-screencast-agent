@@ -159,6 +159,8 @@ hermes-screencast project-init /tmp/product.hermes \
 hermes-screencast project-validate /tmp/product.hermes
 
 hermes-screencast project-auto-zoom /tmp/product.hermes
+
+hermes-screencast project-cursor-motion /tmp/product.hermes
 ```
 
 `HermesProject` copies assets under the project directory and records relative
@@ -186,6 +188,22 @@ hermes-screencast project-auto-zoom /tmp/product.hermes \
   --transition 0.35 \
   --target-margin 80 \
   --merge-distance 120
+```
+
+`project-cursor-motion` turns the cursor positions captured for click, hover,
+and fill actions into an editable `cursor.motion` track. Exact interaction
+positions remain as anchors; movement between them uses clamped cubic Bézier
+segments and finishes shortly before the interaction so the cursor visibly
+settles on its target. The generated track coexists with `auto-zoom`, does not
+change the MP4, and is replaced idempotently when regenerated.
+
+```bash
+hermes-screencast project-cursor-motion /tmp/product.hermes \
+  --speed 1400 \
+  --min-duration 0.12 \
+  --max-duration 0.75 \
+  --settle 0.06 \
+  --tension 0.6
 ```
 
 Record the maintained public example:

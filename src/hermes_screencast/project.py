@@ -211,6 +211,8 @@ def validate_project_timeline(payload: Any) -> None:
             raise ValueError("HermesProject timeline track segments must be a list")
         if track_type == "camera.zoom":
             _validate_camera_zoom_track(track)
+        if track_type == "cursor.motion":
+            _validate_cursor_motion_track(track)
 
 
 def _validate_camera_zoom_track(track: dict[str, Any]) -> None:
@@ -284,6 +286,101 @@ def _validate_camera_zoom_track(track: dict[str, Any]) -> None:
             )
         ):
             raise ValueError("HermesProject camera zoom event references are invalid")
+
+
+def _validate_cursor_motion_track(track: dict[str, Any]) -> None:
+    expected_fields = {"id", "type", "source", "settings", "anchors", "segments"}
+    if set(track) != expected_fields:
+        raise ValueError("HermesProject cursor motion track has invalid fields")
+    if track["source"] != "automatic":
+        raise ValueError("HermesProject cursor motion track source must be automatic")
+    settings = track["settings"]
+    expected_settings = {
+        "speed_pixels_per_second", "minimum_move_seconds",
+        "maximum_move_seconds", "settle_seconds", "tension", "easing",
+    }
+    if (
+        not isinstance(settings, dict) or set(settings) != expected_settings
+        or settings["easing"] != "ease_in_out_cubic"
+    ):
+        raise ValueError("HermesProject cursor motion settings are invalid")
+    for name in expected_settings - {"easing"}:
+        value = settings[name]
+        if (
+            not isinstance(value, (int, float)) or isinstance(value, bool)
+            or not math.isfinite(value) or value < 0
+        ):
+            raise ValueError(f"HermesProject cursor motion setting is invalid: {name}")
+    if settings["speed_pixels_per_second"] <= 0:
+        raise ValueError("HermesProject cursor speed must be positive")
+    if settings["minimum_move_seconds"] > settings["maximum_move_seconds"]:
+        raise ValueError("HermesProject cursor move duration range is invalid")
+    if settings["tension"] > 1:
+        raise ValueError("HermesProject cursor tension must not exceed 1")
+
+    anchors = track["anchors"]
+    if not isinstance(anchors, list):
+        raise ValueError("HermesProject cursor anchors must be a list")
+    previous_time = -1.0
+    for anchor in anchors:
+        if not isinstance(anchor, dict) or set(anchor) != {
+            "time_seconds", "position", "action", "source_event_sequence"
+        }:
+            raise ValueError("HermesProject cursor anchor is invalid")
+        timestamp = anchor["time_seconds"]
+        sequence = anchor["source_event_sequence"]
+        if not _is_finite_non_negative(timestamp) or timestamp < previous_time:
+            raise ValueError("HermesProject cursor anchor times are invalid")
+        previous_time = timestamp
+        if not isinstance(anchor["action"], str) or not anchor["action"]:
+            raise ValueError("HermesProject cursor anchor action is invalid")
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 0:
+            raise ValueError("HermesProject cursor anchor event reference is invalid")
+        _validate_cursor_point(anchor["position"])
+
+    previous_end = -1.0
+    expected_segment_fields = {
+        "start_seconds", "end_seconds", "arrival_seconds", "from", "to",
+        "control_1", "control_2", "source_event_sequences",
+    }
+    for segment in track["segments"]:
+        if not isinstance(segment, dict) or set(segment) != expected_segment_fields:
+            raise ValueError("HermesProject cursor motion segment is invalid")
+        times = [
+            segment["start_seconds"], segment["end_seconds"],
+            segment["arrival_seconds"],
+        ]
+        if any(not _is_finite_non_negative(value) for value in times):
+            raise ValueError("HermesProject cursor motion segment times are invalid")
+        if times != sorted(times) or times[0] < previous_end:
+            raise ValueError("HermesProject cursor motion segments must not overlap")
+        previous_end = times[1]
+        for name in ("from", "to", "control_1", "control_2"):
+            _validate_cursor_point(segment[name])
+        sequences = segment["source_event_sequences"]
+        if (
+            not isinstance(sequences, list) or len(sequences) != 2
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in sequences
+            )
+        ):
+            raise ValueError("HermesProject cursor motion event references are invalid")
+
+
+def _validate_cursor_point(payload: Any) -> None:
+    if (
+        not isinstance(payload, dict) or set(payload) != {"x", "y"}
+        or any(not _is_finite_non_negative(payload[name]) for name in ("x", "y"))
+    ):
+        raise ValueError("HermesProject cursor point is invalid")
+
+
+def _is_finite_non_negative(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(value) and value >= 0
+    )
 
 
 def _asset_for_file(path: Path, relative: str) -> ProjectAsset:

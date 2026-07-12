@@ -105,7 +105,13 @@ Before recording, determine:
 
     This updates `project.json` only. It must not modify or re-encode the source
     MP4. Re-running it replaces the generated `auto-zoom` track.
-11. Return the final absolute MP4, event-log, and project paths to the user.
+11. Generate smooth editable cursor motion when cursor anchors are available:
+
+    hermes-screencast project-cursor-motion product.hermes
+
+    Preserve exact interaction positions as anchors and keep the result in the
+    project timeline. Do not modify or re-encode the source MP4.
+12. Return the final absolute MP4, event-log, and project paths to the user.
 
 ## Recording Behavior
 
