@@ -11,7 +11,8 @@ from hermes_screencast.project import validate_hermes_project
 from hermes_screencast.verifier import verify_mp4
 
 
-SUPPORTED_RENDER_TRACKS = {"time.edit"}
+SUPPORTED_RENDER_TRACKS = {"camera.zoom", "time.edit"}
+RENDER_FPS = 30
 
 
 class UnsupportedRenderTracksError(RuntimeError):
@@ -63,13 +64,30 @@ def build_render_plan(
         (track for track in project.timeline["tracks"] if track["type"] == "time.edit"),
         None,
     )
-    source_duration = _source_duration(root, project, time_track)
+    camera_track = next(
+        (
+            track for track in project.timeline["tracks"]
+            if track["type"] == "camera.zoom"
+        ),
+        None,
+    )
+    event_log = _load_event_log(root, project)
+    source_duration = _source_duration(event_log, time_track)
+    source_width, source_height = _source_dimensions(
+        event_log, project.composition
+    )
     estimated = (
         float(time_track["summary"]["estimated_duration_seconds"])
         if time_track is not None else source_duration
     )
     graph = _build_filter_graph(
-        project.composition, time_track, source_duration, max(estimated, 0.001)
+        project.composition,
+        camera_track,
+        time_track,
+        source_duration,
+        max(estimated, 0.001),
+        source_width,
+        source_height,
     )
     command = (
         ffmpeg, "-y", "-nostdin", "-loglevel", "error", "-i", str(source),
@@ -105,12 +123,20 @@ def render_hermes_project(
 
 def _build_filter_graph(
     composition: dict[str, Any],
+    camera_track: dict[str, Any] | None,
     time_track: dict[str, Any] | None,
     source_duration: float,
     output_duration: float,
+    source_width: int,
+    source_height: int,
 ) -> str:
     filters: list[str] = []
-    timed_label = _append_time_filters(filters, time_track, source_duration)
+    source_label = _append_camera_filter(
+        filters, camera_track, source_width, source_height
+    )
+    timed_label = _append_time_filters(
+        filters, time_track, source_duration, source_label
+    )
     canvas = composition["canvas"]
     frame = composition["frame"]
     width, height, padding = canvas["width"], canvas["height"], frame["padding"]
@@ -152,10 +178,13 @@ def _build_filter_graph(
 
 
 def _append_time_filters(
-    filters: list[str], track: dict[str, Any] | None, duration: float
+    filters: list[str],
+    track: dict[str, Any] | None,
+    duration: float,
+    input_label: str,
 ) -> str:
     if track is None or not track["segments"]:
-        filters.append("[0:v]setpts=PTS-STARTPTS[timed]")
+        filters.append(f"[{input_label}]setpts=PTS-STARTPTS[timed]")
         return "timed"
     pieces: list[tuple[float, float, float]] = []
     cursor = 0.0
@@ -174,11 +203,60 @@ def _append_time_filters(
     for index, (start, end, speed) in enumerate(pieces):
         label = f"part{index}"
         filters.append(
-            f"[0:v]trim=start={start:.6f}:end={end:.6f},setpts=(PTS-STARTPTS)/{speed:.6f}[{label}]"
+            f"[{input_label}]trim=start={start:.6f}:end={end:.6f},"
+            f"setpts=(PTS-STARTPTS)/{speed:.6f}[{label}]"
         )
         labels.append(f"[{label}]")
     filters.append(f"{''.join(labels)}concat=n={len(labels)}:v=1:a=0[timed]")
     return "timed"
+
+
+def _append_camera_filter(
+    filters: list[str], track: dict[str, Any] | None, width: int, height: int
+) -> str:
+    if track is None or not track["segments"]:
+        return "0:v"
+    zoom = "1"
+    x = "(iw-iw/zoom)/2"
+    y = "(ih-ih/zoom)/2"
+    for segment in reversed(track["segments"]):
+        start = float(segment["start_seconds"]) * RENDER_FPS
+        focus = float(segment["focus_seconds"]) * RENDER_FPS
+        hold = float(segment["hold_until_seconds"]) * RENDER_FPS
+        end = float(segment["end_seconds"]) * RENDER_FPS
+        scale = float(segment["scale"])
+        rise = _zoom_transition("1", f"{scale:.6f}", start, focus)
+        fall = _zoom_transition(f"{scale:.6f}", "1", hold, end)
+        active_zoom = (
+            f"if(lt(on,{focus:.6f}),{rise},"
+            f"if(lte(on,{hold:.6f}),{scale:.6f},{fall}))"
+        )
+        active = f"between(on,{start:.6f},{end:.6f})"
+        zoom = f"if({active},{active_zoom},{zoom})"
+        focus_x = float(segment["focus"]["x"]) / width
+        focus_y = float(segment["focus"]["y"]) / height
+        target_x = f"max(0,min(iw-iw/zoom,{focus_x:.9f}*iw-iw/zoom/2))"
+        target_y = f"max(0,min(ih-ih/zoom,{focus_y:.9f}*ih-ih/zoom/2))"
+        x = f"if({active},{target_x},{x})"
+        y = f"if({active},{target_y},{y})"
+    filters.append(
+        f"[0:v]fps={RENDER_FPS},zoompan=z='{zoom}':x='{x}':y='{y}':d=1:"
+        f"s={width}x{height}:fps={RENDER_FPS}[camera]"
+    )
+    return "camera"
+
+
+def _zoom_transition(
+    start_value: str, end_value: str, start_frame: float, end_frame: float
+) -> str:
+    if end_frame <= start_frame:
+        return end_value
+    progress = (
+        f"max(0,min(1,(on-{start_frame:.6f})/"
+        f"{end_frame - start_frame:.6f}))"
+    )
+    eased = f"({progress})*({progress})*(3-2*({progress}))"
+    return f"({start_value})+(({end_value})-({start_value}))*({eased})"
 
 
 def _background_filter(background: dict[str, Any], width: int, height: int, duration: float) -> str:
@@ -196,11 +274,16 @@ def _background_filter(background: dict[str, Any], width: int, height: int, dura
     )
 
 
-def _source_duration(root: Path, project, time_track: dict[str, Any] | None) -> float:
+def _load_event_log(root: Path, project) -> dict[str, Any]:
+    path = root / Path(*PurePosixPath(project.assets["events"].path).parts)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _source_duration(
+    payload: dict[str, Any], time_track: dict[str, Any] | None
+) -> float:
     if time_track is not None:
         return float(time_track["summary"]["source_duration_seconds"])
-    path = root / Path(*PurePosixPath(project.assets["events"].path).parts)
-    payload = json.loads(path.read_text(encoding="utf-8"))
     times = [
         float(event["time_seconds"]) for event in payload.get("events", [])
         if isinstance(event, dict) and event.get("type") == "recording_finished"
@@ -209,3 +292,22 @@ def _source_duration(root: Path, project, time_track: dict[str, Any] | None) -> 
     if not times:
         raise ValueError("Renderer requires recording duration or a time edit summary")
     return max(times)
+
+
+def _source_dimensions(
+    payload: dict[str, Any], composition: dict[str, Any]
+) -> tuple[int, int]:
+    metadata = payload.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = {}
+    canvas = composition["canvas"]
+    width = metadata.get("width", canvas["width"])
+    height = metadata.get("height", canvas["height"])
+    if (
+        not isinstance(width, (int, float)) or isinstance(width, bool)
+        or not isinstance(height, (int, float)) or isinstance(height, bool)
+        or not math.isfinite(width) or not math.isfinite(height)
+        or width <= 0 or height <= 0
+    ):
+        raise ValueError("Renderer requires positive source video dimensions")
+    return round(width), round(height)

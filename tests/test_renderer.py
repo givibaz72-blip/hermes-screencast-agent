@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from hermes_screencast.annotations import add_project_annotation
 from hermes_screencast.auto_edit import apply_auto_edit
 from hermes_screencast.auto_zoom import apply_auto_zoom
 from hermes_screencast.framing import apply_framing_preset
@@ -28,7 +29,8 @@ def create_project(tmp_path):
         "events": [
             {"sequence": 0, "time_seconds": 0, "type": "recording_started"},
             {"sequence": 1, "time_seconds": 0.5, "type": "step_started", "action": "click", "step_index": 0},
-            {"sequence": 2, "time_seconds": 0.8, "type": "step_completed", "action": "click", "step_index": 0},
+            {"sequence": 2, "time_seconds": 0.8, "type": "step_completed", "action": "click", "step_index": 0,
+             "data": {"target": {"x": 1400, "y": 600, "width": 120, "height": 60}}},
             {"sequence": 3, "time_seconds": 6.0, "type": "step_started", "action": "click", "step_index": 1},
             {"sequence": 4, "time_seconds": 6.3, "type": "step_completed", "action": "click", "step_index": 1},
             {"sequence": 5, "time_seconds": 8.0, "type": "recording_finished"},
@@ -74,16 +76,39 @@ def test_render_plan_supports_solid_source_composition(tmp_path) -> None:
     assert "gradients=" not in plan.filter_complex
 
 
-def test_render_rejects_unimplemented_tracks_by_default(tmp_path) -> None:
+def test_render_applies_camera_zoom_before_time_edits(tmp_path) -> None:
     root = create_project(tmp_path)
     apply_auto_zoom(root)
-    with pytest.raises(UnsupportedRenderTracksError, match="camera.zoom"):
+    apply_auto_edit(root)
+    plan = build_render_plan(root, tmp_path / "output.mp4")
+
+    graph = plan.filter_complex
+    assert "fps=30,zoompan=z='if(between(on," in graph
+    assert ":d=1:s=1920x1080:fps=30[camera]" in graph
+    assert "[camera]trim=start=" in graph
+    assert graph.index("zoompan=") < graph.index("trim=start=")
+    assert plan.unsupported_tracks == ()
+
+
+def test_render_rejects_unimplemented_tracks_by_default(tmp_path) -> None:
+    root = create_project(tmp_path)
+    add_project_annotation(
+        root,
+        kind="box",
+        start_seconds=1,
+        end_seconds=2,
+        x=100,
+        y=100,
+        width=300,
+        height=200,
+    )
+    with pytest.raises(UnsupportedRenderTracksError, match="annotation.overlay"):
         build_render_plan(root, tmp_path / "output.mp4")
 
     plan = build_render_plan(
         root, tmp_path / "output.mp4", allow_unrendered=True
     )
-    assert plan.unsupported_tracks == ("camera.zoom",)
+    assert plan.unsupported_tracks == ("annotation.overlay",)
 
 
 def test_render_executes_ffmpeg_and_verifies_output(tmp_path) -> None:
@@ -120,4 +145,3 @@ def test_render_rejects_unsafe_output_choices(tmp_path) -> None:
         build_render_plan(root, tmp_path / "output.mov")
     with pytest.raises(ValueError, match="source MP4"):
         build_render_plan(root, root / "assets" / "source.mp4")
-
