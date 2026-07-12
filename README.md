@@ -283,6 +283,24 @@ for camera, cursor, annotations, and time edits. The embedded preview data is
 escaped before insertion and does not include recording-event payloads or asset
 contents.
 
+Render the first production MP4 export stage:
+
+```bash
+hermes-screencast project-render /tmp/product.hermes \
+  --output /tmp/product-final.mp4
+```
+
+This renderer applies `time.edit` cut/speed segments and the full composition
+contract: canvas, solid or two-color gradient background, contain/cover fit,
+padding, rounded corners, and shadow. It exports H.264/yuv420p with fast-start
+metadata and verifies the resulting MP4.
+
+Camera, cursor, and annotation rendering will arrive in subsequent stages. A
+project containing those tracks is rejected by default so they cannot be
+silently lost. Use `--dry-run` to inspect the exact FFmpeg plan, or explicitly
+pass `--allow-unrendered` when a partial, video-only export is intended. This
+stage does not export audio.
+
 Record the maintained public example:
 
 ```bash

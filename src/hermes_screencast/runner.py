@@ -37,6 +37,7 @@ from .planner import make_basic_task
 from .preview import write_project_preview
 from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
+from .renderer import build_render_plan, render_hermes_project
 from .verifier import verify_mp4
 
 VALID_MODES = {"public", "authenticated", "assisted_login"}
@@ -451,6 +452,22 @@ def run_project_preview_command(args: argparse.Namespace) -> Path:
     return output
 
 
+def run_project_render_command(args: argparse.Namespace):
+    if args.dry_run:
+        plan = build_render_plan(
+            args.project_directory, args.output,
+            allow_unrendered=args.allow_unrendered,
+        )
+        print(json.dumps(plan.to_dict(), ensure_ascii=False, indent=2), flush=True)
+        return plan
+    output = render_hermes_project(
+        args.project_directory, args.output,
+        allow_unrendered=args.allow_unrendered,
+    )
+    print(f"HermesProject rendered: {output}", flush=True)
+    return output
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -643,6 +660,15 @@ def build_parser() -> argparse.ArgumentParser:
     project_preview.add_argument("project_directory")
     project_preview.add_argument("--output")
 
+    project_render = sub.add_parser(
+        "project-render",
+        help="Render composition and time edits to a verified MP4",
+    )
+    project_render.add_argument("project_directory")
+    project_render.add_argument("--output", required=True)
+    project_render.add_argument("--allow-unrendered", action="store_true")
+    project_render.add_argument("--dry-run", action="store_true")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -734,6 +760,10 @@ def main() -> None:
 
     if args.command == "project-preview":
         run_project_preview_command(args)
+        return
+
+    if args.command == "project-render":
+        run_project_render_command(args)
         return
 
     if args.legacy_task_json:

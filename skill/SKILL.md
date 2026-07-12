@@ -135,7 +135,13 @@ Before recording, determine:
     hermes-screencast project-preview product.hermes
 
     Review composition, durations, and every generated track before rendering.
-16. Return the final absolute MP4, event-log, project, and preview paths.
+16. Render only when every required track is supported by the active renderer:
+
+    hermes-screencast project-render product.hermes --output final.mp4
+
+    Do not use `--allow-unrendered` unless the user explicitly accepts a partial
+    export. Verify the generated MP4 before delivery.
+17. Return the final absolute MP4, event-log, project, and preview paths.
 
 ## Recording Behavior
 
