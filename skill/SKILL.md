@@ -139,10 +139,10 @@ Before recording, determine:
 
     hermes-screencast project-render product.hermes --output final.mp4
 
-    Camera zoom and time edits are rendered in source-time order. Cursor and
-    annotation tracks still require `--allow-unrendered`; do not use it unless
-    the user explicitly accepts a partial export. Verify the generated MP4
-    before delivery.
+    Cursor motion, camera zoom, and time edits are rendered in source-time
+    order. Annotation tracks still require `--allow-unrendered`; do not use it
+    unless the user explicitly accepts a partial export. Verify the generated
+    MP4 before delivery.
 17. Return the final absolute MP4, event-log, project, and preview paths.
 
 ## Recording Behavior

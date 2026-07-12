@@ -290,15 +290,16 @@ hermes-screencast project-render /tmp/product.hermes \
   --output /tmp/product-final.mp4
 ```
 
-This renderer applies smooth `camera.zoom` segments in source time, followed by
-`time.edit` cuts/speed changes and the full composition contract: canvas, solid
-or two-color gradient background, contain/cover fit, padding, rounded corners,
-and shadow. Zoom uses cubic easing around the recorded click focus and remains
-synchronized when later edits remove or accelerate source-time ranges. The
-renderer exports H.264/yuv420p with fast-start metadata and verifies the MP4.
+This renderer applies smooth `cursor.motion` Bézier paths and `camera.zoom`
+segments in source time, followed by `time.edit` cuts/speed changes and the full
+composition contract: canvas, solid or two-color gradient background,
+contain/cover fit, padding, rounded corners, and shadow. Cursor and zoom use
+cubic easing around recorded interaction geometry and remain synchronized when
+later edits remove or accelerate source-time ranges. The renderer exports
+H.264/yuv420p with fast-start metadata and verifies the MP4.
 
-Cursor and annotation rendering will arrive in subsequent stages. A project
-containing those tracks is rejected by default so they cannot be silently lost.
+Annotation rendering will arrive in a subsequent stage. A project containing
+that track is rejected by default so it cannot be silently lost.
 Use `--dry-run` to inspect the exact FFmpeg plan, or explicitly pass
 `--allow-unrendered` when a partial, video-only export is intended. This stage
 does not export audio.

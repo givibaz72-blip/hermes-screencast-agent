@@ -11,7 +11,7 @@ from hermes_screencast.project import validate_hermes_project
 from hermes_screencast.verifier import verify_mp4
 
 
-SUPPORTED_RENDER_TRACKS = {"camera.zoom", "time.edit"}
+SUPPORTED_RENDER_TRACKS = {"camera.zoom", "cursor.motion", "time.edit"}
 RENDER_FPS = 30
 
 
@@ -71,6 +71,13 @@ def build_render_plan(
         ),
         None,
     )
+    cursor_track = next(
+        (
+            track for track in project.timeline["tracks"]
+            if track["type"] == "cursor.motion"
+        ),
+        None,
+    )
     event_log = _load_event_log(root, project)
     source_duration = _source_duration(event_log, time_track)
     source_width, source_height = _source_dimensions(
@@ -83,6 +90,7 @@ def build_render_plan(
     graph = _build_filter_graph(
         project.composition,
         camera_track,
+        cursor_track,
         time_track,
         source_duration,
         max(estimated, 0.001),
@@ -124,6 +132,7 @@ def render_hermes_project(
 def _build_filter_graph(
     composition: dict[str, Any],
     camera_track: dict[str, Any] | None,
+    cursor_track: dict[str, Any] | None,
     time_track: dict[str, Any] | None,
     source_duration: float,
     output_duration: float,
@@ -131,8 +140,11 @@ def _build_filter_graph(
     source_height: int,
 ) -> str:
     filters: list[str] = []
+    source_label = _append_cursor_filter(
+        filters, cursor_track, source_duration
+    )
     source_label = _append_camera_filter(
-        filters, camera_track, source_width, source_height
+        filters, camera_track, source_width, source_height, source_label
     )
     timed_label = _append_time_filters(
         filters, time_track, source_duration, source_label
@@ -212,10 +224,11 @@ def _append_time_filters(
 
 
 def _append_camera_filter(
-    filters: list[str], track: dict[str, Any] | None, width: int, height: int
+    filters: list[str], track: dict[str, Any] | None, width: int, height: int,
+    input_label: str,
 ) -> str:
     if track is None or not track["segments"]:
-        return "0:v"
+        return input_label
     zoom = "1"
     x = "(iw-iw/zoom)/2"
     y = "(ih-ih/zoom)/2"
@@ -240,10 +253,69 @@ def _append_camera_filter(
         x = f"if({active},{target_x},{x})"
         y = f"if({active},{target_y},{y})"
     filters.append(
-        f"[0:v]fps={RENDER_FPS},zoompan=z='{zoom}':x='{x}':y='{y}':d=1:"
+        f"[{input_label}]fps={RENDER_FPS},"
+        f"zoompan=z='{zoom}':x='{x}':y='{y}':d=1:"
         f"s={width}x{height}:fps={RENDER_FPS}[camera]"
     )
     return "camera"
+
+
+def _append_cursor_filter(
+    filters: list[str], track: dict[str, Any] | None, duration: float
+) -> str:
+    if track is None or not track["anchors"]:
+        return "0:v"
+    x = _cursor_coordinate_expression(track, "x")
+    y = _cursor_coordinate_expression(track, "y")
+    outer = "between(Y,2,32)*between(X,2,2+0.72*(Y-2))"
+    inner = "between(Y,5,28)*between(X,4,2+0.62*(Y-3))"
+    filters.append(
+        f"color=c=black@0:s=28x36:r={RENDER_FPS}:d={duration:.6f},"
+        f"format=rgba,geq=r='if({inner},255,20)':"
+        f"g='if({inner},255,20)':b='if({inner},255,20)':"
+        f"a='if({outer},255,0)'[cursor_sprite]"
+    )
+    filters.append(
+        f"[0:v][cursor_sprite]overlay=x='{x}-2':y='{y}-2':"
+        "shortest=1:format=auto[cursor]"
+    )
+    return "cursor"
+
+
+def _cursor_coordinate_expression(track: dict[str, Any], axis: str) -> str:
+    anchors = track["anchors"]
+    segments = track["segments"]
+    if not segments:
+        return f"{float(anchors[0]['position'][axis]):.6f}"
+    expression = f"{float(segments[-1]['to'][axis]):.6f}"
+    for segment in reversed(segments):
+        start = float(segment["start_seconds"])
+        end = float(segment["end_seconds"])
+        moving = _cursor_bezier_expression(segment, axis, start, end)
+        origin = float(segment["from"][axis])
+        expression = (
+            f"if(lt(t,{start:.6f}),{origin:.6f},"
+            f"if(lte(t,{end:.6f}),{moving},{expression}))"
+        )
+    return expression
+
+
+def _cursor_bezier_expression(
+    segment: dict[str, Any], axis: str, start: float, end: float
+) -> str:
+    if end <= start:
+        return f"{float(segment['to'][axis]):.6f}"
+    progress = f"max(0,min(1,(t-{start:.6f})/{end-start:.6f}))"
+    eased = f"({progress})*({progress})*(3-2*({progress}))"
+    inverse = f"(1-({eased}))"
+    p0 = float(segment["from"][axis])
+    p1 = float(segment["control_1"][axis])
+    p2 = float(segment["control_2"][axis])
+    p3 = float(segment["to"][axis])
+    return (
+        f"({inverse})^3*{p0:.6f}+3*({inverse})^2*({eased})*{p1:.6f}+"
+        f"3*({inverse})*({eased})^2*{p2:.6f}+({eased})^3*{p3:.6f}"
+    )
 
 
 def _zoom_transition(
