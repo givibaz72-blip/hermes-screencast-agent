@@ -180,3 +180,17 @@ def test_project_cursor_motion_parser():
     assert args.speed == 1200
     assert args.settle == 0.08
     assert args.tension == 0.7
+
+
+def test_project_style_parser():
+    args = build_parser().parse_args([
+        "project-style", "/tmp/demo.hermes", "--preset", "social-vertical",
+        "--background-color", "#123456", "--padding", "80",
+        "--corner-radius", "20", "--no-shadow",
+    ])
+    assert args.command == "project-style"
+    assert args.preset == "social-vertical"
+    assert args.background_color == "#123456"
+    assert args.padding == 80
+    assert args.corner_radius == 20
+    assert args.shadow_enabled is False

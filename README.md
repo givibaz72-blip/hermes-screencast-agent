@@ -161,6 +161,8 @@ hermes-screencast project-validate /tmp/product.hermes
 hermes-screencast project-auto-zoom /tmp/product.hermes
 
 hermes-screencast project-cursor-motion /tmp/product.hermes
+
+hermes-screencast project-style /tmp/product.hermes --preset studio
 ```
 
 `HermesProject` copies assets under the project directory and records relative
@@ -205,6 +207,27 @@ hermes-screencast project-cursor-motion /tmp/product.hermes \
   --settle 0.06 \
   --tension 0.6
 ```
+
+`project-style` applies a complete, validated composition preset without
+touching the source recording or timeline. Available presets are `source`,
+`studio`, `clean`, `social-square` (1:1), `social-vertical` (9:16), and
+`cinematic` (64:27). Each preset defines the canvas, background, padding,
+corner radius, and structured drop shadow that a renderer can reproduce.
+
+Individual values can be overridden while keeping the manifest valid:
+
+```bash
+hermes-screencast project-style /tmp/product.hermes \
+  --preset social-vertical \
+  --background-color '#123456' \
+  --padding 80 \
+  --corner-radius 20 \
+  --no-shadow
+```
+
+Custom `--canvas-width` and `--canvas-height` values automatically update the
+stored aspect ratio. Reapplying a style replaces only the composition object;
+camera and cursor tracks remain unchanged.
 
 Record the maintained public example:
 

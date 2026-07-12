@@ -22,6 +22,10 @@ from .demo.scenario_planner import (
     ScenarioPlanningRequest,
 )
 from .demo.smoke import run_smoke_demo
+from .framing import (
+    apply_framing_preset,
+    available_framing_presets,
+)
 from .planner import make_basic_task
 from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
@@ -348,6 +352,26 @@ def run_project_cursor_motion_command(args: argparse.Namespace) -> dict[str, Any
     return track
 
 
+def run_project_style_command(args: argparse.Namespace) -> dict[str, Any]:
+    composition = apply_framing_preset(
+        args.project_directory,
+        preset=args.preset,
+        background_color=args.background_color,
+        padding=args.padding,
+        corner_radius=args.corner_radius,
+        shadow_enabled=args.shadow_enabled,
+        canvas_width=args.canvas_width,
+        canvas_height=args.canvas_height,
+    )
+    canvas = composition["canvas"]
+    print(
+        "HermesProject style applied: "
+        f"{composition['preset']} ({canvas['width']}x{canvas['height']})",
+        flush=True,
+    )
+    return composition
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -461,6 +485,28 @@ def build_parser() -> argparse.ArgumentParser:
     project_cursor_motion.add_argument("--settle", type=float, default=0.06)
     project_cursor_motion.add_argument("--tension", type=float, default=0.6)
 
+    project_style = sub.add_parser(
+        "project-style",
+        help="Apply a validated canvas and frame preset to HermesProject",
+    )
+    project_style.add_argument("project_directory")
+    project_style.add_argument(
+        "--preset", required=True, choices=available_framing_presets()
+    )
+    project_style.add_argument("--background-color")
+    project_style.add_argument("--padding", type=int)
+    project_style.add_argument("--corner-radius", type=int)
+    project_style.add_argument("--canvas-width", type=int)
+    project_style.add_argument("--canvas-height", type=int)
+    shadow_group = project_style.add_mutually_exclusive_group()
+    shadow_group.add_argument(
+        "--shadow", dest="shadow_enabled", action="store_true"
+    )
+    shadow_group.add_argument(
+        "--no-shadow", dest="shadow_enabled", action="store_false"
+    )
+    project_style.set_defaults(shadow_enabled=None)
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -528,6 +574,10 @@ def main() -> None:
 
     if args.command == "project-cursor-motion":
         run_project_cursor_motion_command(args)
+        return
+
+    if args.command == "project-style":
+        run_project_style_command(args)
         return
 
     if args.legacy_task_json:
