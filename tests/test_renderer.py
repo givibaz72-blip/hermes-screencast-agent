@@ -8,6 +8,7 @@ import pytest
 from hermes_screencast.annotations import add_project_annotation
 from hermes_screencast.auto_edit import apply_auto_edit
 from hermes_screencast.auto_zoom import apply_auto_zoom
+from hermes_screencast.cursor_motion import apply_cursor_motion
 from hermes_screencast.framing import apply_framing_preset
 from hermes_screencast.project import create_hermes_project
 from hermes_screencast.renderer import (
@@ -30,9 +31,12 @@ def create_project(tmp_path):
             {"sequence": 0, "time_seconds": 0, "type": "recording_started"},
             {"sequence": 1, "time_seconds": 0.5, "type": "step_started", "action": "click", "step_index": 0},
             {"sequence": 2, "time_seconds": 0.8, "type": "step_completed", "action": "click", "step_index": 0,
-             "data": {"target": {"x": 1400, "y": 600, "width": 120, "height": 60}}},
+             "data": {"cursor": {"x": 1460, "y": 630},
+                      "target": {"x": 1400, "y": 600, "width": 120, "height": 60}}},
             {"sequence": 3, "time_seconds": 6.0, "type": "step_started", "action": "click", "step_index": 1},
-            {"sequence": 4, "time_seconds": 6.3, "type": "step_completed", "action": "click", "step_index": 1},
+            {"sequence": 4, "time_seconds": 6.3, "type": "step_completed", "action": "click", "step_index": 1,
+             "data": {"cursor": {"x": 420, "y": 320},
+                      "target": {"x": 380, "y": 290, "width": 80, "height": 60}}},
             {"sequence": 5, "time_seconds": 8.0, "type": "recording_finished"},
         ],
     }), encoding="utf-8")
@@ -86,6 +90,24 @@ def test_render_applies_camera_zoom_before_time_edits(tmp_path) -> None:
     assert "fps=30,zoompan=z='if(between(on," in graph
     assert ":d=1:s=1920x1080:fps=30[camera]" in graph
     assert "[camera]trim=start=" in graph
+    assert graph.index("zoompan=") < graph.index("trim=start=")
+    assert plan.unsupported_tracks == ()
+
+
+def test_render_applies_cursor_before_camera_and_time_edits(tmp_path) -> None:
+    root = create_project(tmp_path)
+    apply_cursor_motion(root)
+    apply_auto_zoom(root)
+    apply_auto_edit(root)
+    plan = build_render_plan(root, tmp_path / "output.mp4")
+
+    graph = plan.filter_complex
+    assert "[cursor_sprite]" in graph
+    assert "geq=r='if(between(Y,5,28)" in graph
+    assert "[0:v][cursor_sprite]overlay=x='if(lt(t," in graph
+    assert "[cursor]fps=30,zoompan=" in graph
+    assert "[camera]trim=start=" in graph
+    assert graph.index("[cursor_sprite]") < graph.index("zoompan=")
     assert graph.index("zoompan=") < graph.index("trim=start=")
     assert plan.unsupported_tracks == ()
 
