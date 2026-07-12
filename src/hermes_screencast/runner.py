@@ -11,6 +11,7 @@ from .annotations import (
     list_project_annotations,
     remove_project_annotation,
 )
+from .auto_edit import AutoEditSettings, apply_auto_edit
 from .auto_zoom import AutoZoomSettings, apply_auto_zoom
 from .browser import BrowserRuntime, BrowserRuntimeConfig
 from .config import OUTPUT_DIR, PYTHON, RECORDER
@@ -422,6 +423,27 @@ def run_project_annotation_list_command(
     return annotations
 
 
+def run_project_auto_edit_command(args: argparse.Namespace) -> dict[str, Any]:
+    track = apply_auto_edit(
+        args.project_directory,
+        settings=AutoEditSettings(
+            preserve_threshold_seconds=args.preserve_threshold,
+            cut_threshold_seconds=args.cut_threshold,
+            speed_factor=args.speed,
+            context_seconds=args.context,
+            minimum_edit_seconds=args.minimum_edit,
+        ),
+    )
+    summary = track["summary"]
+    print(
+        "HermesProject auto edit generated: "
+        f"{len(track['segments'])} segments, "
+        f"{summary['removed_seconds']:.3f}s removed",
+        flush=True,
+    )
+    return track
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -596,6 +618,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     project_annotation_list.add_argument("project_directory")
 
+    project_auto_edit = sub.add_parser(
+        "project-auto-edit",
+        help="Generate non-destructive speed and cut edits from recording pauses",
+    )
+    project_auto_edit.add_argument("project_directory")
+    project_auto_edit.add_argument("--preserve-threshold", type=float, default=1.25)
+    project_auto_edit.add_argument("--cut-threshold", type=float, default=4.0)
+    project_auto_edit.add_argument("--speed", type=float, default=4.0)
+    project_auto_edit.add_argument("--context", type=float, default=0.25)
+    project_auto_edit.add_argument("--minimum-edit", type=float, default=0.2)
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -679,6 +712,10 @@ def main() -> None:
 
     if args.command == "project-annotation-list":
         run_project_annotation_list_command(args)
+        return
+
+    if args.command == "project-auto-edit":
+        run_project_auto_edit_command(args)
         return
 
     if args.legacy_task_json:

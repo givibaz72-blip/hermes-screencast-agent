@@ -234,6 +234,8 @@ def validate_project_timeline(
         if track_type == "annotation.overlay":
             canvas = composition.get("canvas") if isinstance(composition, dict) else None
             _validate_annotation_track(track, canvas=canvas)
+        if track_type == "time.edit":
+            _validate_time_edit_track(track)
 
 
 def validate_project_composition(payload: Any) -> None:
@@ -418,6 +420,80 @@ def _validate_annotation_track(
             _validate_arrow_annotation(segment, canvas)
         else:
             raise ValueError("HermesProject annotation kind is invalid")
+
+
+def _validate_time_edit_track(track: dict[str, Any]) -> None:
+    if set(track) != {"id", "type", "source", "settings", "segments", "summary"}:
+        raise ValueError("HermesProject time edit track has invalid fields")
+    if track["source"] != "automatic":
+        raise ValueError("HermesProject time edit track source must be automatic")
+    settings = track["settings"]
+    expected_settings = {
+        "preserve_threshold_seconds", "cut_threshold_seconds", "speed_factor",
+        "context_seconds", "minimum_edit_seconds",
+    }
+    if not isinstance(settings, dict) or set(settings) != expected_settings:
+        raise ValueError("HermesProject time edit settings are invalid")
+    if any(
+        not _is_positive_or_zero_number(settings[name], positive=name == "speed_factor")
+        for name in expected_settings
+    ):
+        raise ValueError("HermesProject time edit settings are invalid")
+    if (
+        settings["cut_threshold_seconds"] <= settings["preserve_threshold_seconds"]
+        or settings["speed_factor"] <= 1
+    ):
+        raise ValueError("HermesProject time edit thresholds are invalid")
+    previous_end = -1.0
+    identifiers: set[str] = set()
+    for segment in track["segments"]:
+        if not isinstance(segment, dict):
+            raise ValueError("HermesProject time edit segment is invalid")
+        common = {
+            "id", "mode", "start_seconds", "end_seconds", "reason",
+            "source_event_sequences",
+        }
+        mode = segment.get("mode")
+        expected = common | ({"speed_factor"} if mode == "speed" else set())
+        if mode not in {"cut", "speed"} or set(segment) != expected:
+            raise ValueError("HermesProject time edit segment is invalid")
+        identifier = segment["id"]
+        start, end = segment["start_seconds"], segment["end_seconds"]
+        if (
+            not isinstance(identifier, str) or identifier in identifiers
+            or re.fullmatch(r"auto-edit-[0-9]{3,}", identifier) is None
+        ):
+            raise ValueError("HermesProject time edit id is invalid or duplicated")
+        identifiers.add(identifier)
+        if (
+            not _is_finite_non_negative(start) or not _is_finite_non_negative(end)
+            or end <= start or start < previous_end
+        ):
+            raise ValueError("HermesProject time edit segments must be ordered and non-overlapping")
+        previous_end = end
+        if segment["reason"] not in {"idle_gap", "wait_step"}:
+            raise ValueError("HermesProject time edit reason is invalid")
+        sequences = segment["source_event_sequences"]
+        if (
+            not isinstance(sequences, list) or len(sequences) != 2
+            or any(
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+                for value in sequences
+            )
+        ):
+            raise ValueError("HermesProject time edit event references are invalid")
+        if mode == "speed" and (
+            not _is_positive_or_zero_number(segment["speed_factor"], positive=True)
+            or segment["speed_factor"] <= 1
+        ):
+            raise ValueError("HermesProject time edit speed is invalid")
+    summary = track["summary"]
+    if not isinstance(summary, dict) or set(summary) != {
+        "source_duration_seconds", "estimated_duration_seconds", "removed_seconds"
+    } or any(not _is_finite_non_negative(summary[name]) for name in summary):
+        raise ValueError("HermesProject time edit summary is invalid")
+    if summary["estimated_duration_seconds"] > summary["source_duration_seconds"]:
+        raise ValueError("HermesProject time edit summary duration is invalid")
 
 
 def _validate_text_annotation(segment: dict[str, Any], canvas: Any) -> None:
