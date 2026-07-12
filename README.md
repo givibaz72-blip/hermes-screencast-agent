@@ -43,7 +43,11 @@ DemoScript
 Normal-language generation uses a separate provider-neutral path:
 
 ```text
+Target page
+  -> PageDiscoveryReport
+
 ScenarioPlanningRequest
+  + PageDiscoveryReport
   -> ScenarioProvider
   -> strict JSON parsing
   -> DemoScript validation
@@ -57,12 +61,31 @@ Write a normal-language scenario:
 Open the product page, highlight the main heading, and explain the primary action.
 ```
 
+Inspect the target page before asking a provider to plan selectors:
+
+```bash
+hermes-screencast demo-discover https://example.com \
+  --headless \
+  --profile product-discovery \
+  --output /tmp/hermes_discovery.json
+```
+
+The discovery report contains visible interactive elements, bounding boxes,
+accessible names, locator candidates, and duplicate role/name warnings. Locator
+priority is unique test id, id, name attribute, safe href, role plus accessible
+name, then short exact text. Input values are never collected. URL credentials,
+fragments, and query values are not written to the report; links containing
+query parameters are not offered as selectors. If the catalog is truncated,
+Hermes conservatively withholds selectors until discovery is rerun with a high
+enough `--max-elements` value.
+
 Generate a validated DemoScript through a provider adapter:
 
 ```bash
 hermes-screencast demo-generate scenario.txt \
   --target-url https://example.com \
   --title "Product overview" \
+  --discovery /tmp/hermes_discovery.json \
   --provider-command /path/to/hermes-provider \
   --provider-arg=--model \
   --provider-arg=local-model \
@@ -79,7 +102,9 @@ examples.
 Optional generation inputs include repeated `--constraint` values and a
 `--preferences` path containing a JSON object. User-supplied title and
 preferences take precedence over provider defaults. A supplied target URL must
-exactly match the first generated `goto` step.
+exactly match the first generated `goto` step. When `--discovery` is supplied,
+the report must use the `hermes.discovery.v1` schema and the planning prompt
+instructs the provider to use discovered selectors instead of inventing them.
 
 Create a starter DemoScript JSON file:
 

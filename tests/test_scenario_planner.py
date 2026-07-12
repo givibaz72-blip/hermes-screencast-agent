@@ -85,6 +85,37 @@ def test_scenario_prompt_lists_only_supported_actions() -> None:
     assert "Return JSON only" in prompt
 
 
+def test_scenario_prompt_includes_valid_discovery_report() -> None:
+    prompt = build_scenario_prompt(
+        ScenarioPlanningRequest(
+            scenario="Click Save",
+            discovery={
+                "schema": "hermes.discovery.v1",
+                "elements": [
+                    {"name": "Save", "selector": '[data-testid="save"]'}
+                ],
+            },
+        )
+    )
+
+    assert "discovery_report" in prompt
+    assert '[data-testid=\\"save\\"]' in prompt
+
+
+def test_scenario_planner_rejects_unknown_discovery_schema() -> None:
+    provider = FakeProvider(valid_output())
+
+    with pytest.raises(ScenarioPlanningError, match="hermes.discovery.v1"):
+        ScenarioPlanner(provider=provider).plan(
+            ScenarioPlanningRequest(
+                scenario="Show the page",
+                discovery={"schema": "unknown"},
+            )
+        )
+
+    assert provider.prompt is None
+
+
 def test_scenario_planner_rejects_empty_scenario_before_provider_call() -> None:
     provider = FakeProvider(valid_output())
 

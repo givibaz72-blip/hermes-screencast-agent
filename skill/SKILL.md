@@ -1,7 +1,7 @@
 ---
 name: website-screencast
 description: Use when the user asks to record a website screencast, browser walkthrough, SaaS demo, product demo, onboarding video, authenticated web app demo, or professional MP4 recording.
-version: 1.2.0
+version: 1.3.0
 author: Hermes User
 license: MIT
 platforms: [linux]
@@ -47,10 +47,21 @@ Before recording, determine:
 ## DemoScript Workflow
 
 1. Save the user's normal-language scenario to a UTF-8 text file.
-2. Generate a validated DemoScript with the configured provider adapter:
+2. Discover visible interactive elements before planning selectors:
+
+    hermes-screencast demo-discover https://example.com \
+      --headless \
+      --profile product-discovery \
+      --output discovery.json
+
+   Review unresolved elements and duplicate role/name warnings. Discovery never
+   records input values and redacts URL query values.
+
+3. Generate a validated DemoScript with the configured provider adapter:
 
     hermes-screencast demo-generate scenario.txt \
       --target-url https://example.com \
+      --discovery discovery.json \
       --provider-command /path/to/hermes-provider \
       --output scenario.json
 
@@ -58,22 +69,23 @@ Before recording, determine:
    JSON object to standard output. Keep provider credentials in its environment,
    never in the scenario or generated JSON.
 
-3. Confirm that `goto` is the first step.
-4. Validate the scenario:
+4. Confirm that generated selectors come from the discovery report and that
+   `goto` is the first step.
+5. Validate the scenario:
 
     hermes-screencast demo-validate scenario.json
 
-5. Review the deterministic action plan:
+6. Review the deterministic action plan:
 
     hermes-screencast demo-plan scenario.json
 
-6. Record the professional MP4:
+7. Record the professional MP4:
 
     hermes-screencast demo-record scenario.json \
       --output result.mp4 \
       --profile product-demo
 
-7. Return the final absolute MP4 path to the user.
+8. Return the final absolute MP4 path to the user.
 
 ## Recording Behavior
 

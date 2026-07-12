@@ -29,6 +29,7 @@ class ScenarioPlanningRequest:
     title: str | None = None
     preferences: dict[str, Any] = field(default_factory=dict)
     constraints: tuple[str, ...] = ()
+    discovery: dict[str, Any] | None = None
 
     def validate(self) -> None:
         if not self.scenario.strip():
@@ -41,6 +42,13 @@ class ScenarioPlanningRequest:
             raise ScenarioPlanningError("Scenario preferences must be an object")
         if any(not constraint.strip() for constraint in self.constraints):
             raise ScenarioPlanningError("Scenario constraints cannot be empty")
+        if self.discovery is not None:
+            if not isinstance(self.discovery, dict):
+                raise ScenarioPlanningError("Scenario discovery must be an object")
+            if self.discovery.get("schema") != "hermes.discovery.v1":
+                raise ScenarioPlanningError(
+                    "Scenario discovery must use schema hermes.discovery.v1"
+                )
 
 
 @dataclass(frozen=True)
@@ -122,6 +130,7 @@ def build_scenario_prompt(request: ScenarioPlanningRequest) -> str:
         "title": request.title,
         "preferences": request.preferences,
         "constraints": list(request.constraints),
+        "discovery_report": request.discovery,
     }
 
     return (
@@ -132,6 +141,7 @@ def build_scenario_prompt(request: ScenarioPlanningRequest) -> str:
         f"Supported actions: {json.dumps(actions)}.\n"
         "The first step must be goto. Use the exact target_url for that step when supplied.\n"
         "Use stable browser selectors and add waits or assertions after important state changes.\n"
+        "When a discovery_report is supplied, use its selectors instead of inventing selectors.\n"
         "Do not include credentials or invent actions that are not supported.\n"
         "Input:\n"
         f"{json.dumps(input_payload, ensure_ascii=False, indent=2)}\n"
