@@ -257,3 +257,15 @@ def test_project_render_parser():
     assert args.fade_out == 0.5
     assert args.normalize_audio is True
     assert args.quality == "archive"
+
+
+def test_project_polish_parser():
+    args = build_parser().parse_args([
+        "project-polish", "/tmp/demo.hermes", "--output", "/tmp/final.mp4",
+        "--preset", "cinematic", "--quality", "balanced",
+    ])
+    assert args.command == "project-polish"
+    assert args.preset == "cinematic"
+    assert args.quality == "balanced"
+    assert args.fade_in == 0.2
+    assert args.fade_out == 0.25

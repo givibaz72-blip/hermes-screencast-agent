@@ -34,6 +34,7 @@ from .framing import (
     available_framing_presets,
 )
 from .planner import make_basic_task
+from .polish import polish_hermes_project
 from .preview import write_project_preview
 from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
@@ -476,6 +477,17 @@ def run_project_render_command(args: argparse.Namespace):
     return output
 
 
+def run_project_polish_command(args: argparse.Namespace):
+    result = polish_hermes_project(
+        args.project_directory, args.output, preview_file=args.preview,
+        preset=args.preset, encoder=args.encoder, quality=args.quality,
+        fade_in_seconds=args.fade_in, fade_out_seconds=args.fade_out,
+        normalize_audio=not args.no_normalize_audio,
+    )
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2), flush=True)
+    return result
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="hermes-screencast")
     sub = parser.add_subparsers(dest="command")
@@ -688,6 +700,28 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("draft", "balanced", "high", "archive"),
     )
 
+    project_polish = sub.add_parser(
+        "project-polish",
+        help="Apply the complete polished screencast workflow and render MP4",
+    )
+    project_polish.add_argument("project_directory")
+    project_polish.add_argument("--output", required=True)
+    project_polish.add_argument("--preview")
+    project_polish.add_argument(
+        "--preset", default="studio", choices=available_framing_presets()
+    )
+    project_polish.add_argument(
+        "--encoder", default="auto",
+        choices=("auto", "software", "nvenc", "qsv", "amf"),
+    )
+    project_polish.add_argument(
+        "--quality", default="high",
+        choices=("draft", "balanced", "high", "archive"),
+    )
+    project_polish.add_argument("--fade-in", type=float, default=0.2)
+    project_polish.add_argument("--fade-out", type=float, default=0.25)
+    project_polish.add_argument("--no-normalize-audio", action="store_true")
+
     parser.add_argument("legacy_task_json", nargs="?")
     return parser
 
@@ -783,6 +817,9 @@ def main() -> None:
 
     if args.command == "project-render":
         run_project_render_command(args)
+        return
+    if args.command == "project-polish":
+        run_project_polish_command(args)
         return
 
     if args.legacy_task_json:
