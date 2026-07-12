@@ -229,6 +229,31 @@ Custom `--canvas-width` and `--canvas-height` values automatically update the
 stored aspect ratio. Reapplying a style replaces only the composition object;
 camera and cursor tracks remain unchanged.
 
+Add editable overlays in canvas coordinates and project time:
+
+```bash
+hermes-screencast project-annotate /tmp/product.hermes \
+  --kind text --id intro-title \
+  --start 0.5 --end 3.0 \
+  --x 120 --y 80 \
+  --text 'Create a polished demo'
+
+hermes-screencast project-annotate /tmp/product.hermes \
+  --kind arrow \
+  --start 3.0 --end 5.0 \
+  --x 300 --y 240 --to-x 720 --to-y 480
+```
+
+Supported kinds are `text`, `box`, `highlight`, and `arrow`. Every annotation
+has a stable ID, start/end time, type-specific geometry, and validated style.
+They are stored in the `annotation.overlay` timeline track and never burned
+into the source MP4.
+
+```bash
+hermes-screencast project-annotation-list /tmp/product.hermes
+hermes-screencast project-annotation-remove /tmp/product.hermes intro-title
+```
+
 Record the maintained public example:
 
 ```bash

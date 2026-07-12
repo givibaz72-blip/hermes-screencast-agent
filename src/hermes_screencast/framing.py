@@ -9,6 +9,7 @@ from typing import Any
 from hermes_screencast.project import (
     validate_hermes_project,
     validate_project_composition,
+    validate_project_timeline,
 )
 
 
@@ -178,6 +179,7 @@ def apply_framing_preset(
         canvas_width=canvas_width,
         canvas_height=canvas_height,
     )
+    validate_project_timeline(project.timeline, composition=composition)
     payload = project.to_dict()
     payload["composition"] = composition
     manifest = root / "project.json"

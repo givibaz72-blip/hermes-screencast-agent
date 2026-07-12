@@ -194,3 +194,28 @@ def test_project_style_parser():
     assert args.padding == 80
     assert args.corner_radius == 20
     assert args.shadow_enabled is False
+
+
+def test_project_annotate_parser():
+    args = build_parser().parse_args([
+        "project-annotate", "/tmp/demo.hermes", "--kind", "arrow",
+        "--start", "1", "--end", "2.5", "--id", "next-step",
+        "--x", "100", "--y", "200", "--to-x", "500", "--to-y", "400",
+        "--color", "#FACC15", "--stroke-width", "6",
+    ])
+    assert args.command == "project-annotate"
+    assert args.kind == "arrow"
+    assert args.annotation_id == "next-step"
+    assert args.to_x == 500
+    assert args.stroke_width == 6
+
+
+def test_project_annotation_management_parsers():
+    remove = build_parser().parse_args([
+        "project-annotation-remove", "/tmp/demo.hermes", "note-1"
+    ])
+    listing = build_parser().parse_args([
+        "project-annotation-list", "/tmp/demo.hermes"
+    ])
+    assert remove.annotation_id == "note-1"
+    assert listing.command == "project-annotation-list"

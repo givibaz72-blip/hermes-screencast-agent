@@ -117,7 +117,14 @@ Before recording, determine:
 
     Choose `social-square` or `social-vertical` for their respective delivery
     formats. Preserve the existing camera and cursor tracks.
-13. Return the final absolute MP4, event-log, and project paths to the user.
+13. Add non-destructive annotations only when they improve comprehension:
+
+    hermes-screencast project-annotate product.hermes \
+      --kind text --start 1 --end 3 --x 120 --y 80 --text "Key action"
+
+    Use stable IDs when an annotation may need later removal. Prefer a small
+    number of purposeful text, box, highlight, or arrow overlays.
+14. Return the final absolute MP4, event-log, and project paths to the user.
 
 ## Recording Behavior
 

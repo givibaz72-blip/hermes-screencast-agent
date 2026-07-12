@@ -134,7 +134,7 @@ def load_hermes_project(project_directory: str | Path) -> HermesProject:
     if not isinstance(composition, dict):
         raise ValueError("HermesProject composition must be an object")
     validate_project_composition(composition)
-    validate_project_timeline(timeline)
+    validate_project_timeline(timeline, composition=composition)
     assets = {name: _asset_from_dict(name, value) for name, value in assets_payload.items()}
     return HermesProject(
         title=title,
@@ -203,7 +203,9 @@ def _validate_events_file(path: Path) -> None:
         raise ValueError("Recording events must contain events list")
 
 
-def validate_project_timeline(payload: Any) -> None:
+def validate_project_timeline(
+    payload: Any, *, composition: dict[str, Any] | None = None
+) -> None:
     if not isinstance(payload, dict) or set(payload) != {"tracks"}:
         raise ValueError("HermesProject timeline must contain only tracks")
     tracks = payload["tracks"]
@@ -229,6 +231,9 @@ def validate_project_timeline(payload: Any) -> None:
             _validate_camera_zoom_track(track)
         if track_type == "cursor.motion":
             _validate_cursor_motion_track(track)
+        if track_type == "annotation.overlay":
+            canvas = composition.get("canvas") if isinstance(composition, dict) else None
+            _validate_annotation_track(track, canvas=canvas)
 
 
 def validate_project_composition(payload: Any) -> None:
@@ -374,6 +379,151 @@ def _validate_project_shadow(payload: Any) -> None:
 
 def _is_hex_color(value: Any) -> bool:
     return isinstance(value, str) and HEX_COLOR_PATTERN.fullmatch(value) is not None
+
+
+def _validate_annotation_track(
+    track: dict[str, Any], *, canvas: dict[str, Any] | None
+) -> None:
+    if set(track) != {"id", "type", "source", "settings", "segments"}:
+        raise ValueError("HermesProject annotation track has invalid fields")
+    if track["source"] != "manual":
+        raise ValueError("HermesProject annotation track source must be manual")
+    if track["settings"] != {"coordinate_space": "canvas"}:
+        raise ValueError("HermesProject annotation settings are invalid")
+    identifiers: set[str] = set()
+    for segment in track["segments"]:
+        if not isinstance(segment, dict):
+            raise ValueError("HermesProject annotation must be an object")
+        identifier = segment.get("id")
+        kind = segment.get("kind")
+        start = segment.get("start_seconds")
+        end = segment.get("end_seconds")
+        if (
+            not isinstance(identifier, str)
+            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", identifier) is None
+            or identifier in identifiers
+        ):
+            raise ValueError("HermesProject annotation id is invalid or duplicated")
+        identifiers.add(identifier)
+        if (
+            not _is_finite_non_negative(start) or not _is_finite_non_negative(end)
+            or end <= start
+        ):
+            raise ValueError("HermesProject annotation times are invalid")
+        if kind == "text":
+            _validate_text_annotation(segment, canvas)
+        elif kind in {"box", "highlight"}:
+            _validate_bounds_annotation(segment, canvas)
+        elif kind == "arrow":
+            _validate_arrow_annotation(segment, canvas)
+        else:
+            raise ValueError("HermesProject annotation kind is invalid")
+
+
+def _validate_text_annotation(segment: dict[str, Any], canvas: Any) -> None:
+    if set(segment) != {
+        "id", "kind", "start_seconds", "end_seconds", "position", "text", "style"
+    }:
+        raise ValueError("HermesProject text annotation has invalid fields")
+    if not isinstance(segment["text"], str) or not segment["text"].strip():
+        raise ValueError("HermesProject text annotation content is invalid")
+    _validate_canvas_point(segment["position"], canvas)
+    style = segment["style"]
+    if not isinstance(style, dict) or set(style) != {
+        "color", "background_color", "font_size", "font_weight", "padding",
+        "corner_radius", "opacity",
+    }:
+        raise ValueError("HermesProject text annotation style is invalid")
+    if not _is_hex_color(style["color"]) or not _is_hex_color(style["background_color"]):
+        raise ValueError("HermesProject text annotation color is invalid")
+    for name in ("font_size", "padding", "corner_radius"):
+        if not _is_positive_or_zero_number(style[name], positive=name == "font_size"):
+            raise ValueError(f"HermesProject text annotation style is invalid: {name}")
+    if style["font_weight"] not in {400, 500, 600, 700}:
+        raise ValueError("HermesProject text annotation font weight is invalid")
+    _validate_opacity(style["opacity"])
+
+
+def _validate_bounds_annotation(segment: dict[str, Any], canvas: Any) -> None:
+    if set(segment) != {
+        "id", "kind", "start_seconds", "end_seconds", "bounds", "style"
+    }:
+        raise ValueError("HermesProject bounds annotation has invalid fields")
+    _validate_canvas_bounds(segment["bounds"], canvas)
+    style = segment["style"]
+    expected = (
+        {"color", "stroke_width", "corner_radius", "opacity"}
+        if segment["kind"] == "box"
+        else {"color", "corner_radius", "opacity"}
+    )
+    if not isinstance(style, dict) or set(style) != expected or not _is_hex_color(style["color"]):
+        raise ValueError("HermesProject bounds annotation style is invalid")
+    if "stroke_width" in style and not _is_positive_or_zero_number(
+        style["stroke_width"], positive=True
+    ):
+        raise ValueError("HermesProject box annotation stroke is invalid")
+    if not _is_positive_or_zero_number(style["corner_radius"], positive=False):
+        raise ValueError("HermesProject bounds annotation radius is invalid")
+    _validate_opacity(style["opacity"])
+
+
+def _validate_arrow_annotation(segment: dict[str, Any], canvas: Any) -> None:
+    if set(segment) != {
+        "id", "kind", "start_seconds", "end_seconds", "from", "to", "style"
+    }:
+        raise ValueError("HermesProject arrow annotation has invalid fields")
+    _validate_canvas_point(segment["from"], canvas)
+    _validate_canvas_point(segment["to"], canvas)
+    style = segment["style"]
+    if not isinstance(style, dict) or set(style) != {
+        "color", "stroke_width", "head_size", "opacity"
+    } or not _is_hex_color(style["color"]):
+        raise ValueError("HermesProject arrow annotation style is invalid")
+    for name in ("stroke_width", "head_size"):
+        if not _is_positive_or_zero_number(style[name], positive=True):
+            raise ValueError(f"HermesProject arrow annotation style is invalid: {name}")
+    _validate_opacity(style["opacity"])
+
+
+def _validate_canvas_point(payload: Any, canvas: Any) -> None:
+    if (
+        not isinstance(payload, dict) or set(payload) != {"x", "y"}
+        or any(not _is_finite_non_negative(payload[name]) for name in ("x", "y"))
+    ):
+        raise ValueError("HermesProject annotation point is invalid")
+    if isinstance(canvas, dict) and (
+        payload["x"] > canvas["width"] or payload["y"] > canvas["height"]
+    ):
+        raise ValueError("HermesProject annotation point exceeds canvas")
+
+
+def _validate_canvas_bounds(payload: Any, canvas: Any) -> None:
+    if not isinstance(payload, dict) or set(payload) != {"x", "y", "width", "height"}:
+        raise ValueError("HermesProject annotation bounds are invalid")
+    if (
+        not _is_finite_non_negative(payload["x"])
+        or not _is_finite_non_negative(payload["y"])
+        or not _is_positive_or_zero_number(payload["width"], positive=True)
+        or not _is_positive_or_zero_number(payload["height"], positive=True)
+    ):
+        raise ValueError("HermesProject annotation bounds are invalid")
+    if isinstance(canvas, dict) and (
+        payload["x"] + payload["width"] > canvas["width"]
+        or payload["y"] + payload["height"] > canvas["height"]
+    ):
+        raise ValueError("HermesProject annotation bounds exceed canvas")
+
+
+def _is_positive_or_zero_number(value: Any, *, positive: bool) -> bool:
+    return (
+        isinstance(value, (int, float)) and not isinstance(value, bool)
+        and math.isfinite(value) and (value > 0 if positive else value >= 0)
+    )
+
+
+def _validate_opacity(value: Any) -> None:
+    if not _is_positive_or_zero_number(value, positive=False) or value > 1:
+        raise ValueError("HermesProject annotation opacity is invalid")
 
 
 def _validate_camera_zoom_track(track: dict[str, Any]) -> None:
