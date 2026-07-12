@@ -532,6 +532,13 @@ def _append_cursor_filter(
         return "0:v"
     x = _cursor_coordinate_expression(track, "x")
     y = _cursor_coordinate_expression(track, "y")
+    click_script = _cursor_click_script(track)
+    input_label = "0:v"
+    if click_script:
+        input_label = "cursor_clicks"
+        filters.append(
+            f"[0:v]drawvg=script='{click_script}'[{input_label}]"
+        )
     outer = "between(Y,2,32)*between(X,2,2+0.72*(Y-2))"
     inner = "between(Y,5,28)*between(X,4,2+0.62*(Y-3))"
     filters.append(
@@ -541,10 +548,30 @@ def _append_cursor_filter(
         f"a='if({outer},255,0)'[cursor_sprite]"
     )
     filters.append(
-        f"[0:v][cursor_sprite]overlay=x='{x}-2':y='{y}-2':"
+        f"[{input_label}][cursor_sprite]overlay=x='{x}-2':y='{y}-2':"
         "shortest=1:format=auto[cursor]"
     )
     return "cursor"
+
+
+def _cursor_click_script(track: dict[str, Any]) -> str:
+    duration = 0.35
+    scripts = []
+    for anchor in track["anchors"]:
+        if anchor["action"] != "click":
+            continue
+        start = float(anchor["time_seconds"])
+        end = start + duration
+        x = float(anchor["position"]["x"])
+        y = float(anchor["position"]["y"])
+        progress = f"((t-{start:.6f})/{duration:.6f})"
+        scripts.append(
+            f"if (between(t,{start:.6f},{end:.6f})) {{ "
+            f"circle {x:.6f} {y:.6f} (8+28*{progress}) "
+            f"setrgba 1 1 1 (0.8*(1-{progress})) "
+            "setlinewidth 4 stroke }"
+        )
+    return " ".join(scripts)
 
 
 def _cursor_coordinate_expression(track: dict[str, Any], axis: str) -> str:

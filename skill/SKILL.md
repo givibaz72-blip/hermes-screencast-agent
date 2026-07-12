@@ -145,6 +145,9 @@ Before recording, determine:
     present. Leave `--encoder auto` enabled unless deterministic software or a
     specific verified hardware backend is required. Verify the generated MP4
     before delivery.
+
+    Completed click anchors automatically receive a short vector feedback ring;
+    keep cursor motion enabled when visible interaction feedback is expected.
 17. Return the final absolute MP4, event-log, project, and preview paths.
 
 ## Recording Behavior
