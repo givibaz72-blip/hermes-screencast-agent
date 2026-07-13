@@ -100,9 +100,14 @@ def test_render_applies_cursor_before_camera_and_time_edits(tmp_path) -> None:
     apply_cursor_motion(root)
     apply_auto_zoom(root)
     apply_auto_edit(root)
-    plan = build_render_plan(root, tmp_path / "output.mp4")
+    plan = build_render_plan(
+        root,
+        tmp_path / "output.mp4",
+        filter_probe=lambda executable: frozenset({"drawvg"}),
+    )
 
     graph = plan.filter_complex
+    assert plan.vector_backend == "drawvg"
     assert "[cursor_sprite]" in graph
     assert "geq=r='if(between(Y,5,28)" in graph
     assert "[0:v]drawvg=script='if (between(t,0.800000,1.150000))" in graph
@@ -140,9 +145,14 @@ def test_render_applies_all_annotation_kinds_after_composition(tmp_path) -> None
         root, kind="text", start_seconds=1, end_seconds=4,
         x=120, y=60, text="Important: action",
     )
-    plan = build_render_plan(root, tmp_path / "output.mp4")
+    plan = build_render_plan(
+        root,
+        tmp_path / "output.mp4",
+        filter_probe=lambda executable: frozenset({"drawvg"}),
+    )
 
     graph = plan.filter_complex
+    assert plan.vector_backend == "drawvg"
     assert "format=rgba[composed]" in graph
     assert "drawvg=script='if (between(t,1,2))" in graph
     assert "setlinejoin round stroke" in graph
@@ -153,6 +163,92 @@ def test_render_applies_all_annotation_kinds_after_composition(tmp_path) -> None
     assert graph.index("drawvg=") < graph.index("drawtext=")
     assert plan.unsupported_tracks == ()
 
+
+
+def test_render_uses_portable_click_feedback_without_drawvg(tmp_path) -> None:
+    root = create_project(tmp_path)
+    apply_cursor_motion(root)
+    apply_auto_zoom(root)
+    apply_auto_edit(root)
+
+    plan = build_render_plan(
+        root,
+        tmp_path / "output.mp4",
+        filter_probe=lambda executable: frozenset(
+            {"drawbox", "drawtext", "geq", "overlay"}
+        ),
+    )
+
+    graph = plan.filter_complex
+    assert plan.vector_backend == "portable"
+    assert "drawvg=" not in graph
+    assert "cursor_click_layer_0" in graph
+    assert "between(T,0.800000,1.150000)" in graph
+    assert "hypot(X-1460.000000,Y-630.000000)" in graph
+    assert "[cursor_clicks_1][cursor_sprite]overlay=" in graph
+    assert graph.index("cursor_click_layer_0") < graph.index("zoompan=")
+
+
+def test_render_uses_portable_annotations_without_drawvg(tmp_path) -> None:
+    root = create_project(tmp_path)
+    add_project_annotation(
+        root,
+        kind="box",
+        start_seconds=1,
+        end_seconds=2,
+        x=100,
+        y=100,
+        width=300,
+        height=200,
+    )
+    add_project_annotation(
+        root,
+        kind="highlight",
+        start_seconds=2,
+        end_seconds=3,
+        x=500,
+        y=120,
+        width=240,
+        height=100,
+    )
+    add_project_annotation(
+        root,
+        kind="arrow",
+        start_seconds=3,
+        end_seconds=4,
+        x=80,
+        y=80,
+        to_x=420,
+        to_y=320,
+    )
+    add_project_annotation(
+        root,
+        kind="text",
+        start_seconds=1,
+        end_seconds=4,
+        x=120,
+        y=60,
+        text="Important: action",
+    )
+
+    plan = build_render_plan(
+        root,
+        tmp_path / "output.mp4",
+        filter_probe=lambda executable: frozenset(
+            {"drawbox", "drawtext", "geq", "overlay"}
+        ),
+    )
+
+    graph = plan.filter_complex
+    assert plan.vector_backend == "portable"
+    assert "drawvg=" not in graph
+    assert "drawbox=x=100.000000:y=100.000000" in graph
+    assert "t=4.000000:enable='between(t,1.000000,2.000000)'" in graph
+    assert "t=fill:enable='between(t,2.000000,3.000000)'" in graph
+    assert "annotation_arrow_layer_2" in graph
+    assert "between(T,3.000000,4.000000)" in graph
+    assert "drawtext=text='Important\\: action'" in graph
+    assert graph.index("annotation_arrow_layer_2") < graph.index("drawtext=")
 
 def test_render_keeps_audio_synchronized_with_time_edits(tmp_path) -> None:
     root = create_project(tmp_path)

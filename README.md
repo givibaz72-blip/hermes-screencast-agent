@@ -501,11 +501,11 @@ This project does not bypass CAPTCHA, Cloudflare, 2FA, SMS codes, email codes, o
 
 ## FFmpeg filter capabilities
 
-Hermes inspects the installed FFmpeg build before rendering filter graphs that
-need optional filters. Vector annotations and cursor click rings currently
-require the `drawvg` filter. When it is unavailable, rendering stops before
-FFmpeg starts and reports the missing filter explicitly.
+Hermes inspects the installed FFmpeg build before rendering. When `drawvg`
+is available, vector annotations and cursor click rings use the native vector
+backend. Standard FFmpeg builds without `drawvg` automatically use a portable
+fallback based on `drawbox`, `geq`, and `overlay`.
 
-The real FFmpeg polish integration test is skipped when the local FFmpeg build
-does not provide `drawvg`. Portable rendering fallbacks are developed
-separately so visual effects are never removed silently.
+The portable backend preserves boxes, highlights, arrows, cursor click rings,
+and timed text. Rounded vector corners and antialiasing may differ slightly
+from the native `drawvg` backend, but effects are never removed silently.
