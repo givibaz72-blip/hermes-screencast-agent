@@ -8,11 +8,14 @@ import pytest
 
 from hermes_screencast.polish import polish_hermes_project
 from hermes_screencast.project import create_hermes_project, load_hermes_project
+from hermes_screencast.renderer import ffmpeg_supports_filter
 
 
 pytestmark = pytest.mark.skipif(
-    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
-    reason="FFmpeg integration tools are unavailable",
+    shutil.which("ffmpeg") is None
+    or shutil.which("ffprobe") is None
+    or not ffmpeg_supports_filter("drawvg"),
+    reason="FFmpeg integration tools or required drawvg filter are unavailable",
 )
 
 

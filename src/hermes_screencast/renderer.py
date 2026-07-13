@@ -33,6 +33,16 @@ class UnsupportedRenderTracksError(RuntimeError):
     pass
 
 
+class MissingFFmpegFiltersError(RuntimeError):
+    def __init__(self, missing_filters: tuple[str, ...], ffmpeg: str) -> None:
+        self.missing_filters = missing_filters
+        self.ffmpeg = ffmpeg
+        joined = ", ".join(missing_filters)
+        super().__init__(
+            f"FFmpeg executable {ffmpeg!r} is missing required filters: {joined}"
+        )
+
+
 @dataclass(frozen=True)
 class RenderPlan:
     source: Path
@@ -173,6 +183,100 @@ def build_render_plan(
     )
 
 
+def probe_ffmpeg_filters(
+    ffmpeg: str = "ffmpeg",
+    *,
+    runner: Callable[..., Any] = subprocess.run,
+) -> frozenset[str]:
+    try:
+        result = runner(
+            [ffmpeg, "-hide_banner", "-filters"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=8,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"FFmpeg executable {ffmpeg!r} is required to inspect filters"
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"Timed out while inspecting filters from FFmpeg executable {ffmpeg!r}"
+        ) from exc
+
+    if result.returncode != 0:
+        error = (
+            result.stderr
+            or result.stdout
+            or "unknown FFmpeg filter probe error"
+        ).strip()
+        raise RuntimeError(
+            f"Could not inspect filters from FFmpeg executable {ffmpeg!r}: {error}"
+        )
+
+    available: set[str] = set()
+    valid_flags = set(".ABCDEFGHIJKLMNOPQRSTUVWXYZ|")
+
+    for line in f"{result.stdout}\n{result.stderr}".splitlines():
+        fields = line.split()
+        if len(fields) < 2:
+            continue
+
+        flags, name = fields[0], fields[1]
+        if not set(flags) <= valid_flags:
+            continue
+        if name.isidentifier():
+            available.add(name)
+
+    return frozenset(available)
+
+
+@lru_cache(maxsize=None)
+def ffmpeg_filter_names(ffmpeg: str = "ffmpeg") -> frozenset[str]:
+    return probe_ffmpeg_filters(ffmpeg)
+
+
+def ffmpeg_supports_filter(
+    filter_name: str,
+    ffmpeg: str = "ffmpeg",
+) -> bool:
+    try:
+        return filter_name in ffmpeg_filter_names(ffmpeg)
+    except RuntimeError:
+        return False
+
+
+def required_ffmpeg_filters(filter_complex: str) -> tuple[str, ...]:
+    optional_filters = ("drawvg",)
+    return tuple(
+        filter_name
+        for filter_name in optional_filters
+        if f"{filter_name}=" in filter_complex
+    )
+
+
+def ensure_ffmpeg_filter_capabilities(
+    filter_complex: str,
+    *,
+    ffmpeg: str = "ffmpeg",
+    probe: Callable[[str], frozenset[str]] | None = None,
+) -> None:
+    required = required_ffmpeg_filters(filter_complex)
+    if not required:
+        return
+
+    available = (probe or ffmpeg_filter_names)(ffmpeg)
+    missing = tuple(
+        filter_name
+        for filter_name in required
+        if filter_name not in available
+    )
+
+    if missing:
+        raise MissingFFmpegFiltersError(missing, ffmpeg)
+
+
 def render_hermes_project(
     project_directory: str | Path,
     output_file: str | Path,
@@ -185,6 +289,7 @@ def render_hermes_project(
     quality_profile: str = "high",
     runner: Callable[..., Any] = subprocess.run,
     verifier: Callable[[Path], Path] = verify_mp4,
+    filter_probe: Callable[[str], frozenset[str]] | None = None,
 ) -> Path:
     plan = build_render_plan(
         project_directory, output_file, allow_unrendered=allow_unrendered,
@@ -192,6 +297,11 @@ def render_hermes_project(
         fade_in_seconds=fade_in_seconds, fade_out_seconds=fade_out_seconds,
         normalize_audio=normalize_audio,
         quality_profile=quality_profile,
+    )
+    ensure_ffmpeg_filter_capabilities(
+        plan.filter_complex,
+        ffmpeg=plan.command[0],
+        probe=filter_probe,
     )
     plan.output.parent.mkdir(parents=True, exist_ok=True)
     try:
