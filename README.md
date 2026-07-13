@@ -353,6 +353,7 @@ tracks, previews the composition background, and saves background edits through
 the validated ETag API. It never exposes source video or event-log assets.
 Timeline segments can be selected to edit validated start/end times before
 saving the project.
+Camera zoom segments additionally expose scale and focus X/Y controls.
 
 Record the maintained public example:
 
