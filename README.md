@@ -498,3 +498,14 @@ hermes-screencast run --url https://example.com
 ## Safety
 
 This project does not bypass CAPTCHA, Cloudflare, 2FA, SMS codes, email codes, or passkeys automatically.
+
+## FFmpeg filter capabilities
+
+Hermes inspects the installed FFmpeg build before rendering filter graphs that
+need optional filters. Vector annotations and cursor click rings currently
+require the `drawvg` filter. When it is unavailable, rendering stops before
+FFmpeg starts and reports the missing filter explicitly.
+
+The real FFmpeg polish integration test is skipped when the local FFmpeg build
+does not provide `drawvg`. Portable rendering fallbacks are developed
+separately so visual effects are never removed silently.
