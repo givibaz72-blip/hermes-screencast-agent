@@ -337,6 +337,31 @@ with short synchronized fades, automatic encoder selection, and normalized
 audio when present. All generated tracks remain editable in HermesProject.
 Use `--preset keep` to preserve an existing custom composition.
 
+Produce the complete screencast directly from a
+normal-language scenario:
+
+```bash
+hermes-screencast demo-produce scenario.txt \
+  --target-url https://example.com \
+  --title "Product overview" \
+  --provider-command /path/to/hermes-provider \
+  --provider-arg=--model \
+  --provider-arg=local-model \
+  --output /tmp/product-final.mp4
+```
+
+`demo-produce` performs page discovery, generates and validates
+DemoScript, records the browser, creates HermesProject, applies the
+complete polish workflow, and writes the final MP4 and HTML preview.
+
+Intermediate artifacts are preserved in a sibling work directory such
+as `product-final.work/`. It contains the discovery report, generated
+DemoScript, source recording, synchronized events, editable
+HermesProject, and `result.json`.
+
+Existing workspaces, final videos, and previews are never overwritten.
+Use `--work-directory` to select another workspace.
+
 The editor foundation exposes `read_editor_project` and `save_editor_project`
 for validated composition/timeline editing. Snapshots carry a SHA-256 ETag;
 stale saves are rejected and accepted edits replace `project.json` atomically
