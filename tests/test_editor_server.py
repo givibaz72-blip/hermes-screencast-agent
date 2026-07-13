@@ -63,6 +63,9 @@ def test_editor_serves_ui_and_project_snapshot(editor_url) -> None:
         assert "Save project" in markup
         assert "Apply segment" in markup
         assert "Apply frame" in markup
+        assert "Apply background" in markup
+        assert "Background color is invalid" in markup
+        assert "Gradient colors and angle are invalid" in markup
         assert "Frame settings must fit the canvas" in markup
         assert "previewShadowColor" in markup
         assert "Segment end must be greater than start" in markup
@@ -102,6 +105,29 @@ def test_editor_http_save_and_stale_conflict(editor_url) -> None:
     with pytest.raises(urllib.error.HTTPError) as exc:
         request_json(editor_url + "/api/project", method="PUT", payload=update)
     assert exc.value.code == 409
+
+
+def test_editor_http_saves_gradient_background(editor_url) -> None:
+    _, snapshot = request_json(editor_url + "/api/project")
+    update = {
+        "etag": snapshot["etag"],
+        "composition": snapshot["project"]["composition"],
+        "timeline": snapshot["project"]["timeline"],
+    }
+    update["composition"]["background"] = {
+        "type": "linear_gradient",
+        "colors": ["#0F172A", "#7C3AED"],
+        "angle_degrees": 135,
+    }
+    status, saved = request_json(
+        editor_url + "/api/project", method="PUT", payload=update
+    )
+    assert status == 200
+    assert saved["project"]["composition"]["background"] == {
+        "type": "linear_gradient",
+        "colors": ["#0F172A", "#7C3AED"],
+        "angle_degrees": 135,
+    }
 
 
 def test_editor_rejects_non_loopback_bind(tmp_path) -> None:
