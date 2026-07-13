@@ -36,6 +36,7 @@ from .framing import (
 from .editor_server import create_editor_server
 from .planner import make_basic_task
 from .polish import polish_hermes_project
+from .produce import produce_screencast
 from .preview import write_project_preview
 from .project import create_hermes_project, validate_hermes_project
 from .recorder_adapter import RecorderAdapter
@@ -295,6 +296,50 @@ def run_demo_discover_command(
     )
     print(f"Page discovery written: {output_path}", flush=True)
     return output_path
+
+
+def run_demo_produce_command(args: argparse.Namespace):
+    preferences = (
+        _load_json_object(
+            Path(args.preferences),
+            "Preferences",
+        )
+        if args.preferences
+        else {}
+    )
+
+    result = produce_screencast(
+        args.scenario,
+        args.target_url,
+        (
+            args.provider_command,
+            *args.provider_arg,
+        ),
+        args.output,
+        work_directory=args.work_directory,
+        title=args.title,
+        preferences=preferences,
+        constraints=tuple(args.constraint),
+        profile=args.profile,
+        discovery_headless=not args.visible_discovery,
+        max_elements=args.max_elements,
+        preset=args.preset,
+        encoder=args.encoder,
+        quality=args.quality,
+        fade_in_seconds=args.fade_in,
+        fade_out_seconds=args.fade_out,
+        normalize_audio=not args.no_normalize_audio,
+    )
+
+    print(
+        json.dumps(
+            result.to_dict(),
+            ensure_ascii=False,
+            indent=2,
+        ),
+        flush=True,
+    )
+    return result
 
 
 def _load_json_object(path: Path, field_name: str) -> dict[str, Any]:
@@ -583,6 +628,97 @@ def build_parser() -> argparse.ArgumentParser:
     demo_discover.add_argument("--headless", action="store_true")
     demo_discover.add_argument("--max-elements", type=int, default=250)
 
+    demo_produce = sub.add_parser(
+        "demo-produce",
+        help=(
+            "Produce a polished screencast "
+            "from a user-written scenario"
+        ),
+    )
+    demo_produce.add_argument("scenario")
+    demo_produce.add_argument(
+        "--target-url",
+        required=True,
+    )
+    demo_produce.add_argument(
+        "--provider-command",
+        required=True,
+    )
+    demo_produce.add_argument(
+        "--provider-arg",
+        action="append",
+        default=[],
+    )
+    demo_produce.add_argument(
+        "--output",
+        required=True,
+    )
+    demo_produce.add_argument("--work-directory")
+    demo_produce.add_argument("--title")
+    demo_produce.add_argument("--preferences")
+    demo_produce.add_argument(
+        "--constraint",
+        action="append",
+        default=[],
+    )
+    demo_produce.add_argument(
+        "--profile",
+        default="demo-produce",
+    )
+    demo_produce.add_argument(
+        "--visible-discovery",
+        action="store_true",
+        help=(
+            "Show the discovery browser instead "
+            "of running it headlessly"
+        ),
+    )
+    demo_produce.add_argument(
+        "--max-elements",
+        type=int,
+        default=250,
+    )
+    demo_produce.add_argument(
+        "--preset",
+        default="studio",
+        choices=("keep", *available_framing_presets()),
+    )
+    demo_produce.add_argument(
+        "--encoder",
+        default="auto",
+        choices=(
+            "auto",
+            "software",
+            "nvenc",
+            "qsv",
+            "amf",
+        ),
+    )
+    demo_produce.add_argument(
+        "--quality",
+        default="high",
+        choices=(
+            "draft",
+            "balanced",
+            "high",
+            "archive",
+        ),
+    )
+    demo_produce.add_argument(
+        "--fade-in",
+        type=float,
+        default=0.2,
+    )
+    demo_produce.add_argument(
+        "--fade-out",
+        type=float,
+        default=0.25,
+    )
+    demo_produce.add_argument(
+        "--no-normalize-audio",
+        action="store_true",
+    )
+
     project_init = sub.add_parser("project-init", help="Create a portable HermesProject")
     project_init.add_argument("project_directory")
     project_init.add_argument("--title", required=True)
@@ -796,6 +932,10 @@ def main() -> None:
 
     if args.command == "demo-discover":
         run_demo_discover_command(args)
+        return
+
+    if args.command == "demo-produce":
+        run_demo_produce_command(args)
         return
 
     if args.command == "project-init":

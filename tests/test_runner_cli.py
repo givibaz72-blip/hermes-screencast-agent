@@ -278,3 +278,49 @@ def test_project_editor_parser():
     assert args.command == "project-editor"
     assert args.host == "127.0.0.1"
     assert args.port == 9000
+
+
+def test_demo_produce_parser():
+    parser = build_parser()
+    args = parser.parse_args([
+        "demo-produce",
+        "/tmp/scenario.txt",
+        "--target-url", "https://example.com",
+        "--provider-command", "provider-wrapper",
+        "--provider-arg=--model",
+        "--provider-arg", "local-model",
+        "--output", "/tmp/final.mp4",
+        "--work-directory", "/tmp/final-work",
+        "--title", "Product demo",
+        "--preferences", "/tmp/preferences.json",
+        "--constraint", "Do not submit forms",
+        "--profile", "product-demo",
+        "--visible-discovery",
+        "--max-elements", "500",
+        "--preset", "cinematic",
+        "--encoder", "software",
+        "--quality", "archive",
+        "--fade-in", "0.3",
+        "--fade-out", "0.4",
+        "--no-normalize-audio",
+    ])
+
+    assert args.command == "demo-produce"
+    assert args.scenario == "/tmp/scenario.txt"
+    assert args.target_url == "https://example.com"
+    assert args.provider_command == "provider-wrapper"
+    assert args.provider_arg == ["--model", "local-model"]
+    assert args.output == "/tmp/final.mp4"
+    assert args.work_directory == "/tmp/final-work"
+    assert args.title == "Product demo"
+    assert args.preferences == "/tmp/preferences.json"
+    assert args.constraint == ["Do not submit forms"]
+    assert args.profile == "product-demo"
+    assert args.visible_discovery is True
+    assert args.max_elements == 500
+    assert args.preset == "cinematic"
+    assert args.encoder == "software"
+    assert args.quality == "archive"
+    assert args.fade_in == 0.3
+    assert args.fade_out == 0.4
+    assert args.no_normalize_audio is True
