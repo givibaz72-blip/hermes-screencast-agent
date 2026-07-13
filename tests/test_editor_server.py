@@ -62,6 +62,9 @@ def test_editor_serves_ui_and_project_snapshot(editor_url) -> None:
         assert "Hermes Editor" in markup
         assert "Save project" in markup
         assert "Apply segment" in markup
+        assert "Apply frame" in markup
+        assert "Frame settings must fit the canvas" in markup
+        assert "previewShadowColor" in markup
         assert "Segment end must be greater than start" in markup
         assert "Zoom scale" in markup
         assert "Camera scale and focus must fit the canvas" in markup
