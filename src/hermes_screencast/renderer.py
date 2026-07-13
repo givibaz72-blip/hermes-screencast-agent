@@ -57,6 +57,7 @@ class RenderPlan:
     fade_out_seconds: float
     normalize_audio: bool
     quality_profile: str
+    vector_backend: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -70,6 +71,7 @@ class RenderPlan:
             "fade_out_seconds": self.fade_out_seconds,
             "normalize_audio": self.normalize_audio,
             "quality_profile": self.quality_profile,
+            "vector_backend": self.vector_backend,
         }
 
 
@@ -82,6 +84,7 @@ def build_render_plan(
     audio_probe: Callable[[Path], bool] | None = None,
     video_encoder: str = "software",
     encoder_probe: Callable[[str], bool] | None = None,
+    filter_probe: Callable[[str], frozenset[str]] | None = None,
     fade_in_seconds: float = 0.0,
     fade_out_seconds: float = 0.0,
     normalize_audio: bool = False,
@@ -138,6 +141,7 @@ def build_render_plan(
         if time_track is not None else source_duration
     )
     _validate_fades(fade_in_seconds, fade_out_seconds, estimated)
+    vector_backend = _select_vector_backend(ffmpeg, filter_probe)
     graph = _build_filter_graph(
         project.composition,
         camera_track,
@@ -148,6 +152,7 @@ def build_render_plan(
         max(estimated, 0.001),
         source_width,
         source_height,
+        vector_backend,
     )
     has_audio = (audio_probe or _has_audio_stream)(source)
     selected_encoder = _select_video_encoder(video_encoder, encoder_probe)
@@ -179,7 +184,7 @@ def build_render_plan(
     return RenderPlan(
         source, output, command, graph, unsupported, estimated, has_audio,
         selected_encoder, fade_in_seconds, fade_out_seconds, normalize_audio,
-        quality_profile,
+        quality_profile, vector_backend,
     )
 
 
@@ -277,6 +282,25 @@ def ensure_ffmpeg_filter_capabilities(
         raise MissingFFmpegFiltersError(missing, ffmpeg)
 
 
+def _select_vector_backend(
+    ffmpeg: str,
+    probe: Callable[[str], frozenset[str]] | None,
+) -> str:
+    if probe is None:
+        return (
+            "drawvg"
+            if ffmpeg_supports_filter("drawvg", ffmpeg)
+            else "portable"
+        )
+
+    try:
+        available = probe(ffmpeg)
+    except RuntimeError:
+        return "portable"
+
+    return "drawvg" if "drawvg" in available else "portable"
+
+
 def render_hermes_project(
     project_directory: str | Path,
     output_file: str | Path,
@@ -297,6 +321,7 @@ def render_hermes_project(
         fade_in_seconds=fade_in_seconds, fade_out_seconds=fade_out_seconds,
         normalize_audio=normalize_audio,
         quality_profile=quality_profile,
+        filter_probe=filter_probe,
     )
     ensure_ffmpeg_filter_capabilities(
         plan.filter_complex,
@@ -325,10 +350,16 @@ def _build_filter_graph(
     output_duration: float,
     source_width: int,
     source_height: int,
+    vector_backend: str,
 ) -> str:
     filters: list[str] = []
     source_label = _append_cursor_filter(
-        filters, cursor_track, source_duration
+        filters,
+        cursor_track,
+        source_duration,
+        source_width,
+        source_height,
+        vector_backend,
     )
     source_label = _append_camera_filter(
         filters, camera_track, source_width, source_height, source_label
@@ -381,47 +412,236 @@ def _build_filter_graph(
             "fps=30,format=rgba[composed]"
         )
         _append_annotation_filters(
-            filters, annotation_track, "composed"
+            filters,
+            annotation_track,
+            "composed",
+            width,
+            height,
+            output_duration,
+            vector_backend,
         )
     return ";".join(filters)
 
 
 def _append_annotation_filters(
-    filters: list[str], track: dict[str, Any], input_label: str
+    filters: list[str],
+    track: dict[str, Any],
+    input_label: str,
+    width: int,
+    height: int,
+    duration: float,
+    vector_backend: str,
 ) -> str:
-    vector_script = " ".join(
-        script for segment in track["segments"]
-        if (script := _vector_annotation_script(segment))
-    )
     label = input_label
-    index = 0
-    if vector_script:
-        label = "annotations_vector"
-        filters.append(
-            f"[{input_label}]drawvg=script='{vector_script}'[{label}]"
+
+    if vector_backend == "drawvg":
+        vector_script = " ".join(
+            script for segment in track["segments"]
+            if (script := _vector_annotation_script(segment))
         )
+        if vector_script:
+            label = "annotations_vector"
+            filters.append(
+                f"[{input_label}]drawvg=script='{vector_script}'[{label}]"
+            )
+    else:
+        label = _append_portable_annotation_filters(
+            filters,
+            track,
+            label,
+            width,
+            height,
+            duration,
+        )
+
+    text_index = 0
     for segment in track["segments"]:
         if segment["kind"] != "text":
             continue
-        next_label = f"annotation_text_{index}"
+
+        next_label = f"annotation_text_{text_index}"
         style = segment["style"]
         position = segment["position"]
-        text = _escape_drawtext(segment["text"])
+        annotation_text = _escape_drawtext(segment["text"])
         font_file = _annotation_font_file(int(style["font_weight"]))
+
         filters.append(
-            f"[{label}]drawtext=text='{text}':expansion=none:"
+            f"[{label}]drawtext=text='{annotation_text}':expansion=none:"
             f"fontfile='{font_file}':"
             f"fontcolor={style['color']}:fontsize={style['font_size']}:"
             f"x={position['x']}:y={position['y']}:box=1:"
             f"boxcolor={style['background_color']}:"
             f"boxborderw={style['padding']}:alpha={style['opacity']}:"
-            f"enable='between(t,{segment['start_seconds']},{segment['end_seconds']})'"
-            f"[{next_label}]"
+            f"enable='between(t,{segment['start_seconds']},"
+            f"{segment['end_seconds']})'[{next_label}]"
         )
         label = next_label
-        index += 1
+        text_index += 1
+
     filters.append(f"[{label}]format=yuv420p[outv]")
     return "outv"
+
+
+def _append_portable_annotation_filters(
+    filters: list[str],
+    track: dict[str, Any],
+    input_label: str,
+    width: int,
+    height: int,
+    duration: float,
+) -> str:
+    label = input_label
+    vector_index = 0
+
+    for segment in track["segments"]:
+        kind = segment["kind"]
+        if kind == "text":
+            continue
+
+        next_label = f"annotation_portable_{vector_index}"
+        style = segment["style"]
+        red, green, blue, opacity = _portable_color(
+            style["color"],
+            float(style["opacity"]),
+        )
+        start = float(segment["start_seconds"])
+        end = float(segment["end_seconds"])
+
+        if kind in {"box", "highlight"}:
+            bounds = segment["bounds"]
+            thickness = (
+                "fill"
+                if kind == "highlight"
+                else f"{float(style['stroke_width']):.6f}"
+            )
+            filters.append(
+                f"[{label}]drawbox="
+                f"x={float(bounds['x']):.6f}:"
+                f"y={float(bounds['y']):.6f}:"
+                f"w={float(bounds['width']):.6f}:"
+                f"h={float(bounds['height']):.6f}:"
+                f"color=0x{red:02X}{green:02X}{blue:02X}@{opacity:.6f}:"
+                f"t={thickness}:"
+                f"enable='between(t,{start:.6f},{end:.6f})'"
+                f"[{next_label}]"
+            )
+        elif kind == "arrow":
+            layer_label = f"annotation_arrow_layer_{vector_index}"
+            alpha = _portable_arrow_alpha(segment, opacity)
+            filters.append(
+                f"color=c=black@0:s={width}x{height}:"
+                f"r={RENDER_FPS}:d={duration:.6f},format=rgba,"
+                f"geq=r='{red}':g='{green}':b='{blue}':a='{alpha}'"
+                f"[{layer_label}]"
+            )
+            filters.append(
+                f"[{label}][{layer_label}]overlay=0:0:"
+                f"shortest=1:format=auto[{next_label}]"
+            )
+        else:
+            raise ValueError(f"Unsupported annotation kind: {kind}")
+
+        label = next_label
+        vector_index += 1
+
+    return label
+
+
+def _portable_arrow_alpha(
+    segment: dict[str, Any],
+    opacity: float,
+) -> str:
+    origin = segment["from"]
+    target = segment["to"]
+    style = segment["style"]
+
+    x1 = float(origin["x"])
+    y1 = float(origin["y"])
+    x2 = float(target["x"])
+    y2 = float(target["y"])
+    dx = x2 - x1
+    dy = y2 - y1
+    length = max(math.hypot(dx, dy), 0.001)
+    length_squared = max(dx * dx + dy * dy, 0.000001)
+
+    unit_x = dx / length
+    unit_y = dy / length
+    head = float(style["head_size"])
+    wing = head * 0.55
+
+    left_x = x2 - head * unit_x - wing * unit_y
+    left_y = y2 - head * unit_y + wing * unit_x
+    right_x = x2 - head * unit_x + wing * unit_y
+    right_y = y2 - head * unit_y - wing * unit_x
+
+    projection = (
+        f"max(0,min(1,((X-{x1:.6f})*{dx:.6f}+"
+        f"(Y-{y1:.6f})*{dy:.6f})/{length_squared:.6f}))"
+    )
+    closest_x = f"({x1:.6f}+{dx:.6f}*({projection}))"
+    closest_y = f"({y1:.6f}+{dy:.6f}*({projection}))"
+    radius = max(float(style["stroke_width"]) / 2, 0.5)
+    shaft = (
+        f"lte(hypot(X-{closest_x},Y-{closest_y}),{radius:.6f})"
+    )
+
+    edge_one = _portable_triangle_edge(
+        x2, y2, left_x, left_y
+    )
+    edge_two = _portable_triangle_edge(
+        left_x, left_y, right_x, right_y
+    )
+    edge_three = _portable_triangle_edge(
+        right_x, right_y, x2, y2
+    )
+    head_mask = (
+        f"gt("
+        f"gte({edge_one},0)*gte({edge_two},0)*gte({edge_three},0)+"
+        f"lte({edge_one},0)*lte({edge_two},0)*lte({edge_three},0),"
+        f"0)"
+    )
+
+    start = float(segment["start_seconds"])
+    end = float(segment["end_seconds"])
+    alpha = 255 * opacity
+
+    return (
+        f"{alpha:.6f}*between(T,{start:.6f},{end:.6f})*"
+        f"gt(({shaft})+({head_mask}),0)"
+    )
+
+
+def _portable_triangle_edge(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+) -> str:
+    return (
+        f"((X-{x1:.6f})*{y2-y1:.6f}-"
+        f"(Y-{y1:.6f})*{x2-x1:.6f})"
+    )
+
+
+def _portable_color(
+    value: str,
+    opacity: float,
+) -> tuple[int, int, int, float]:
+    raw = value.removeprefix("#")
+    if len(raw) == 6:
+        embedded_alpha = 1.0
+    elif len(raw) == 8:
+        embedded_alpha = int(raw[6:8], 16) / 255
+        raw = raw[:6]
+    else:
+        raise ValueError(f"Unsupported portable annotation color: {value}")
+
+    return (
+        int(raw[0:2], 16),
+        int(raw[2:4], 16),
+        int(raw[4:6], 16),
+        max(0.0, min(1.0, opacity * embedded_alpha)),
+    )
 
 
 def _vector_annotation_script(segment: dict[str, Any]) -> str:
@@ -695,19 +915,37 @@ def _append_camera_filter(
 
 
 def _append_cursor_filter(
-    filters: list[str], track: dict[str, Any] | None, duration: float
+    filters: list[str],
+    track: dict[str, Any] | None,
+    duration: float,
+    width: int,
+    height: int,
+    vector_backend: str,
 ) -> str:
     if track is None or not track["anchors"]:
         return "0:v"
+
     x = _cursor_coordinate_expression(track, "x")
     y = _cursor_coordinate_expression(track, "y")
-    click_script = _cursor_click_script(track)
     input_label = "0:v"
-    if click_script:
-        input_label = "cursor_clicks"
-        filters.append(
-            f"[0:v]drawvg=script='{click_script}'[{input_label}]"
+
+    if vector_backend == "drawvg":
+        click_script = _cursor_click_script(track)
+        if click_script:
+            input_label = "cursor_clicks"
+            filters.append(
+                f"[0:v]drawvg=script='{click_script}'[{input_label}]"
+            )
+    else:
+        input_label = _append_portable_click_filters(
+            filters,
+            track,
+            input_label,
+            duration,
+            width,
+            height,
         )
+
     outer = "between(Y,2,32)*between(X,2,2+0.72*(Y-2))"
     inner = "between(Y,5,28)*between(X,4,2+0.62*(Y-3))"
     filters.append(
@@ -721,6 +959,61 @@ def _append_cursor_filter(
         "shortest=1:format=auto[cursor]"
     )
     return "cursor"
+
+
+def _append_portable_click_filters(
+    filters: list[str],
+    track: dict[str, Any],
+    input_label: str,
+    duration: float,
+    width: int,
+    height: int,
+) -> str:
+    label = input_label
+    click_index = 0
+    click_duration = 0.35
+
+    for anchor in track["anchors"]:
+        if anchor["action"] != "click":
+            continue
+
+        start = float(anchor["time_seconds"])
+        end = start + click_duration
+        x = float(anchor["position"]["x"])
+        y = float(anchor["position"]["y"])
+        progress = (
+            f"((T-{start:.6f})/{click_duration:.6f})"
+        )
+        radius = f"(8+28*({progress}))"
+        alpha = (
+            f"max(0,min(255,"
+            f"204*between(T,{start:.6f},{end:.6f})*"
+            f"(1-({progress}))*"
+            f"between(hypot(X-{x:.6f},Y-{y:.6f}),"
+            f"{radius}-2,{radius}+2)"
+            f"))"
+        )
+
+        base_label = f"cursor_click_base_{click_index}"
+        layer_label = f"cursor_click_layer_{click_index}"
+        next_label = f"cursor_clicks_{click_index}"
+
+        filters.append(f"[{label}]format=rgba[{base_label}]")
+        filters.append(
+            f"color=c=black@0:s={width}x{height}:"
+            f"r={RENDER_FPS}:d={duration:.6f},format=rgba,"
+            f"geq=r='255':g='255':b='255':a='{alpha}'"
+            f"[{layer_label}]"
+        )
+        filters.append(
+            f"[{base_label}][{layer_label}]overlay=0:0:"
+            f"shortest=1:format=auto[{next_label}]"
+        )
+
+        label = next_label
+        click_index += 1
+
+    return label
 
 
 def _cursor_click_script(track: dict[str, Any]) -> str:
