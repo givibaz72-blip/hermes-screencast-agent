@@ -65,6 +65,12 @@ def test_editor_serves_ui_and_project_snapshot(editor_url) -> None:
         assert "Segment end must be greater than start" in markup
         assert "Zoom scale" in markup
         assert "Camera scale and focus must fit the canvas" in markup
+        assert "Annotation color or opacity is invalid" in markup
+        assert "Text annotation must fit the canvas" in markup
+        assert "Annotation bounds must fit the canvas" in markup
+        assert "Annotation arrow must fit the canvas" in markup
+        assert 'id="annotation-font-size"' in markup
+        assert "Math.max(1,segments.length)*24" in markup
         assert response.headers["Cache-Control"] == "no-store"
     status, snapshot = request_json(editor_url + "/api/project")
     assert status == 200
