@@ -63,6 +63,8 @@ def test_editor_serves_ui_and_project_snapshot(editor_url) -> None:
         assert "Save project" in markup
         assert "Apply segment" in markup
         assert "Segment end must be greater than start" in markup
+        assert "Zoom scale" in markup
+        assert "Camera scale and focus must fit the canvas" in markup
         assert response.headers["Cache-Control"] == "no-store"
     status, snapshot = request_json(editor_url + "/api/project")
     assert status == 200
