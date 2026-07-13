@@ -354,6 +354,8 @@ the validated ETag API. It never exposes source video or event-log assets.
 Timeline segments can be selected to edit validated start/end times before
 saving the project.
 Camera zoom segments additionally expose scale and focus X/Y controls.
+Annotation segments expose text, color, opacity, and kind-specific geometry;
+overlapping segments are stacked so every edit remains selectable.
 
 Record the maintained public example:
 
