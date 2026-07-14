@@ -16,6 +16,7 @@ class BrowserConfig:
     viewport_height: int = 1080
     locale: str = "ru-RU"
     kiosk: bool = False
+    display: str = ":99"
 
 
 class BrowserFactory:
@@ -29,7 +30,7 @@ class BrowserFactory:
         )
 
         browser_args = [
-            "--display=:99",
+            f"--display={self.config.display}",
             "--no-sandbox",
             "--window-position=0,0",
             (

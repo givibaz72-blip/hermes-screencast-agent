@@ -534,3 +534,57 @@ fallback based on `drawbox`, `geq`, and `overlay`.
 The portable backend preserves boxes, highlights, arrows, cursor click rings,
 and timed text. Rounded vector corners and antialiasing may differ slightly
 from the native `drawvg` backend, but effects are never removed silently.
+
+## Assisted login for authenticated applications
+
+The `browser-login` command assists with logging into websites that require authentication, using a persistent browser profile and a secure, loop‑only handoff mechanism.
+
+### Usage
+
+```bash
+python -m hermes_screencast.runner browser-login \
+  https://app.example.com/ \
+  --profile my-app-profile
+```
+
+This will:
+1. Launch a Chromium instance with the given profile (created if missing) on a virtual display (`:99` by default).
+2. Print a handoff URL (e.g. `http://127.0.0.1:<port>/vnc.html?token=...&autoconnect=1&resize=scale`).
+3. Open that URL in a Hermes Desktop embedded view (when available) or any VNC/noVNC client so the user can complete the login manually.
+4. After login succeeds (detected via URL change or success selector), the browser is closed, the profile (with cookies/localStorage) is saved, and a JSON result is returned.
+
+### Example workflow with demo‑produce
+
+```bash
+# 1. Assist login (once per profile)
+python -m hermes_screencast.runner browser-login \
+  https://app.heygen.com/ \
+  --profile heygen-review
+
+# 2. Later, produce a demo using the same authenticated profile
+python -m hermes_screencast.runner demo-produce \
+  scenario.txt \
+  --target-url https://app.heygen.com/ \
+  --provider-command ./my-provider \
+  --output heygen-review.mp4 \
+  --profile heygen-review
+```
+
+### Security and cleanup
+
+- **Loop‑only binding:** The handoff server binds to `127.0.0.1` only; no external exposure.
+- **Ephemeral token:** The handoff URL contains a single‑use, cryptographically secure token.
+- **Token handling:** The token appears in the temporary handoff URL (visible in command output) but is not stored in result JSON, manifests, or persistent logs.
+- **No secret leakage:** Passwords, cookies, localStorage, and tokens never appear in logs, or generated artifacts.
+- **Lifecycle cleanup:** All spawned processes (Xvfb, Chromium, x11vnc, websockify, ffmpeg) are terminated on completion or interruption.
+- **Persistent profile:** The browser profile (e.g. `heygen-review`) retains cookies, enabling subsequent `demo-produce` runs to skip login.
+
+### Limitations
+
+- The handoff URL is accessible only from the local machine (loopback). To use it from a remote Hermes Desktop client, the client must run on the same host or have port forwarding configured.
+- The `browser-login` command does not automate form filling; it relies on the user to complete the login via the VNC/web UI.
+- Binding the handoff server to `0.0.0.0` is prohibited and will be rejected.
+
+### Status
+
+Backend handoff and persistent authentication are verified. Hermes Desktop transport remains unavailable until an embedded view or trusted loopback proxy is implemented.

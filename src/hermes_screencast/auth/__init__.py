@@ -1,13 +1,24 @@
-from .models import (
-    AuthMode,
-    AuthResult,
-    AuthState,
-    CredentialSpec,
+from .models import AuthState, AuthMode, CredentialSpec, AuthResult
+from .handoff import (
+    AssistedLoginHandoff,
+    LoopbackConfig,
+    AuthSuccessConfig,
+    HandoffResult,
+    generate_token,
+    validate_loopback_host,
+    create_handoff,
 )
 
 __all__ = [
-    "AuthMode",
-    "AuthResult",
     "AuthState",
+    "AuthMode",
     "CredentialSpec",
+    "AuthResult",
+    "AssistedLoginHandoff",
+    "LoopbackConfig",
+    "AuthSuccessConfig",
+    "HandoffResult",
+    "generate_token",
+    "validate_loopback_host",
+    "create_handoff",
 ]

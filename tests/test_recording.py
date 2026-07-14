@@ -68,8 +68,12 @@ def test_virtual_display_starts_and_stops_processes(monkeypatch) -> None:
         return process
 
     def fake_run(command, **kwargs):
-        run_calls.append((command, kwargs))
-        return subprocess.CompletedProcess(command, 0)
+            run_calls.append((command, kwargs))
+            # xdpyinfo check should raise CalledProcessError (display not in use)
+            # xdotool should return success
+            if command[0] == "xdpyinfo":
+                raise subprocess.CalledProcessError(1, command)
+            return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(recording.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(recording.subprocess, "run", fake_run)
@@ -85,6 +89,7 @@ def test_virtual_display_starts_and_stops_processes(monkeypatch) -> None:
     with display:
         assert recording.os.environ["DISPLAY"] == ":99"
 
+    # Xvfb should be started first (display not in use)
     assert created_processes[0][0] == [
         "Xvfb",
         ":99",
@@ -94,8 +99,10 @@ def test_virtual_display_starts_and_stops_processes(monkeypatch) -> None:
         "-ac",
         "-nocursor",
     ]
+    # unclutter should be started second
     assert created_processes[1][0][0] == "unclutter"
-    assert run_calls[0][0] == ["xdotool", "mousemove", "9999", "9999"]
+    # xdotool mousemove should be called
+    assert run_calls[1][0] == ["xdotool", "mousemove", "9999", "9999"]
 
     assert created_processes[0][1].terminate_called is True
     assert created_processes[1][1].terminate_called is True
