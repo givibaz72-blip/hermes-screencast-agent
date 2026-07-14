@@ -16,6 +16,7 @@ class BrowserRuntimeConfig:
     viewport_height: int = 1080
     locale: str = "ru-RU"
     kiosk: bool = False
+    display: str = ":99"
 
 
 class BrowserRuntime:
@@ -29,6 +30,7 @@ class BrowserRuntime:
             viewport_height=self.config.viewport_height,
             locale=self.config.locale,
             kiosk=self.config.kiosk,
+            display=self.config.display,
         )
 
         self.session = BrowserSession(config=browser_config)

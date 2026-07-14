@@ -415,7 +415,6 @@ def run_project_style_command(args: argparse.Namespace) -> dict[str, Any]:
         background_color=args.background_color,
         padding=args.padding,
         corner_radius=args.corner_radius,
-        shadow_enabled=args.shadow_enabled,
         canvas_width=args.canvas_width,
         canvas_height=args.canvas_height,
     )
@@ -546,6 +545,32 @@ def run_project_editor_command(args: argparse.Namespace):
         pass
     finally:
         server.server_close()
+
+
+def run_browser_login_command(args: argparse.Namespace):
+    from .auth import create_handoff
+
+    handoff = create_handoff(
+        target_url=args.url,
+        profile=args.profile,
+        host=args.host,
+        port=args.port,
+        timeout=args.timeout,
+        success_url_prefix=args.success_url_prefix,
+        success_selector=args.success_selector,
+        no_auto_detect=args.no_auto_detect,
+        display=args.display,
+        width=args.width,
+        height=args.height,
+    )
+
+    try:
+        result = handoff.start()
+        result = handoff.wait_for_completion(timeout=args.timeout + 10)
+    finally:
+        handoff.stop()
+
+    print(result.to_json(), flush=True)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -717,6 +742,66 @@ def build_parser() -> argparse.ArgumentParser:
     demo_produce.add_argument(
         "--no-normalize-audio",
         action="store_true",
+    )
+
+    browser_login = sub.add_parser(
+        "browser-login",
+        help="Assisted login handoff for authenticated applications",
+    )
+    browser_login.add_argument("url", help="Target URL to open for login")
+    browser_login.add_argument(
+        "--profile",
+        default="default",
+        help="Browser profile name (default: default)",
+    )
+    browser_login.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Loopback host address (default: 127.0.0.1)",
+    )
+    browser_login.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="Port for handoff server (default: auto)",
+    )
+    browser_login.add_argument(
+        "--timeout",
+        type=float,
+        default=300.0,
+        help="Timeout in seconds (default: 300)",
+    )
+    browser_login.add_argument(
+        "--success-url-prefix",
+        default="",
+        help="URL prefix indicating successful authentication",
+    )
+    browser_login.add_argument(
+        "--success-selector",
+        default="",
+        help="CSS selector indicating successful authentication",
+    )
+    browser_login.add_argument(
+        "--no-auto-detect",
+        action="store_true",
+        help="Disable automatic authentication detection",
+    )
+    browser_login.add_argument(
+        "--display",
+        default=":99",
+        help="X display number (default: :99)",
+    )
+    browser_login.add_argument(
+        "--width",
+        type=int,
+        default=1920,
+        help="Display width (default: 1920)",
+    )
+    browser_login.add_argument(
+        "--height",
+        type=int,
+        default=1080,
+        help="Display height (default: 1080)",
     )
 
     project_init = sub.add_parser("project-init", help="Create a portable HermesProject")
@@ -938,6 +1023,10 @@ def main() -> None:
         run_demo_produce_command(args)
         return
 
+    if args.command == "browser-login":
+        run_browser_login_command(args)
+        return
+
     if args.command == "project-init":
         run_project_init_command(args)
         return
@@ -981,9 +1070,11 @@ def main() -> None:
     if args.command == "project-render":
         run_project_render_command(args)
         return
+
     if args.command == "project-polish":
         run_project_polish_command(args)
         return
+
     if args.command == "project-editor":
         run_project_editor_command(args)
         return
