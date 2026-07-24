@@ -60,7 +60,11 @@ def terminate_process(
 
 @dataclass
 class VirtualDisplay:
-    """Manage the Xvfb display used by the visible Chromium browser."""
+    """Manage the Xvfb display used by the visible Chromium browser.
+
+    Tracks whether this instance owns the Xvfb process so it doesn't
+    terminate an externally managed display on close.
+    """
 
     display: str = DEFAULT_DISPLAY
     width: int = DEFAULT_WIDTH
@@ -69,10 +73,41 @@ class VirtualDisplay:
 
     process: subprocess.Popen | None = field(default=None, init=False)
     cursor_hider: subprocess.Popen | None = field(default=None, init=False)
+    _owns_display: bool = field(default=False, init=False)
 
     def start(self) -> "VirtualDisplay":
         if self.process is not None and self.process.poll() is None:
             raise RuntimeError("Virtual display is already running")
+
+        # Check if display is already available (e.g., Xvfb started externally)
+        env = {**os.environ, "DISPLAY": self.display}
+        try:
+            subprocess.run(
+                ["xdpyinfo"],
+                env=env,
+                capture_output=True,
+                check=True,
+                timeout=2,
+            )
+            # Display already exists, don't start Xvfb
+            os.environ["DISPLAY"] = self.display
+            self.cursor_hider = subprocess.Popen(
+                [
+                    "unclutter",
+                    "-display",
+                    self.display,
+                    "-idle",
+                    "0",
+                    "-root",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            self._owns_display = False
+            return self
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+            # Display not available, start Xvfb
+            pass
 
         self.process = subprocess.Popen(
             [
@@ -84,19 +119,23 @@ class VirtualDisplay:
                 "-ac",
                 "-nocursor",
             ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
 
         try:
             time.sleep(self.startup_delay)
 
             if self.process.poll() is not None:
+                stderr = self.process.stderr.read().decode() if self.process.stderr else ""
+                stdout = self.process.stdout.read().decode() if self.process.stdout else ""
                 raise RuntimeError(
-                    f"Xvfb exited before display {self.display} became ready"
+                    f"Xvfb exited before display {self.display} became ready\n"
+                    f"stdout: {stdout}\nstderr: {stderr}"
                 )
 
             os.environ["DISPLAY"] = self.display
+            self._owns_display = True
 
             self.cursor_hider = subprocess.Popen(
                 [
@@ -127,8 +166,11 @@ class VirtualDisplay:
         terminate_process(self.cursor_hider)
         self.cursor_hider = None
 
-        terminate_process(self.process)
+        # Only terminate Xvfb if we own it
+        if self._owns_display:
+            terminate_process(self.process)
         self.process = None
+        self._owns_display = False
 
     def __enter__(self) -> "VirtualDisplay":
         return self.start()
