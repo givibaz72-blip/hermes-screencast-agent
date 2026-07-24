@@ -375,9 +375,9 @@ class TestCompanionCliSource:
         import inspect
         source = inspect.getsource(cli)
         # The string "playwright" is valid as a strategy choice, just not as an import
-        assert 'choices=["playwright", "raw-cdp"]' in source or \
-               "choices=['playwright', 'raw-cdp']" in source, \
-            "CLI should have browser_startup strategy choices"
+        assert 'choices=["playwright", "raw-cdp", "existing-cdp"]' in source or \
+               "choices=['playwright', 'raw-cdp', 'existing-cdp']" in source, \
+            "CLI should have browser_startup strategy choices including existing-cdp"
 
     def test_cli_source_contains_auth_wait_seconds(self):
         """Test that CLI source contains auth_wait_seconds argument."""

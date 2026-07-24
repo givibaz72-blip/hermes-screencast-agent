@@ -11,6 +11,7 @@ import ssl
 import subprocess
 import tempfile
 import time
+import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
@@ -48,6 +49,9 @@ class LocalCompanionConfig:
     headless: bool = True
     chrome_path: Optional[str] = None
     browser_startup: str = "playwright"
+    cdp_endpoint: Optional[str] = None
+    cdp_host: str = "127.0.0.1"
+    cdp_port: int = 9222
     auth_wait_seconds: int = 300
 
 
@@ -73,6 +77,34 @@ class UnifiedCompanionConfig:
     mode: CompanionMode = CompanionMode.LOCAL
     local: LocalCompanionConfig = field(default_factory=LocalCompanionConfig)
     remote: Optional[RemoteCompanionConfig] = None
+
+
+# ---------------------------------------------------------------------------
+# Helper: auto-discover CDP endpoint on localhost
+# ---------------------------------------------------------------------------
+def _discover_cdp_endpoint(host: str = "127.0.0.1", port: int = 9222) -> str:
+    """Probe *host:port*/json/version and return the HTTP endpoint URL.
+
+    Raises RuntimeError if the endpoint is unreachable or doesn't return valid
+    CDP metadata (meaning Chrome is not listening with ``--remote-debugging-port``).
+    """
+    url = f"http://{host}:{port}/json/version"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            if not data.get("webSocketDebuggerUrl"):
+                raise RuntimeError(
+                    f"Reached {url} but got no 'webSocketDebuggerUrl' "
+                    f"— is Chrome running with --remote-debugging-port?"
+                )
+            return f"http://{host}:{port}"
+    except urllib.error.URLError as e:
+        raise RuntimeError(
+            f"Cannot connect to Chrome CDP at {url}. "
+            f"Ensure Chrome is running with --remote-debugging-port={port}. "
+            f"Details: {e}"
+        ) from e
 
 
 class LocalBrowserProcess:
@@ -104,6 +136,8 @@ class LocalBrowserProcess:
 
             if config.browser_startup == BrowserStartup.RAW_CDP.value:
                 return await self._start_with_raw_cdp(config)
+            elif config.browser_startup == BrowserStartup.EXISTING_CDP.value:
+                return await self._start_with_existing_cdp(config)
             else:
                 await self._start_with_playwright(config)
                 return True
@@ -218,6 +252,75 @@ class LocalBrowserProcess:
         if self._raw_chrome:
             self._raw_chrome.stop()
             self._raw_chrome = None
+
+    async def _start_with_existing_cdp(self, config: SessionConfig) -> bool:
+        """Connect to an already-running Chrome instance via CDP.
+
+        Does NOT launch Chrome. Only connects to existing CDP endpoint.
+        If cdp_endpoint not provided, auto-discovers from cdp_host:cdp_port.
+        """
+        from playwright.async_api import async_playwright
+
+        # Auto-discover or build CDP endpoint
+        cdp_endpoint = config.cdp_endpoint
+        if not cdp_endpoint:
+            try:
+                cdp_endpoint = _discover_cdp_endpoint(config.cdp_host, config.cdp_port)
+                logger.info(f"Auto-discovered CDP endpoint: {cdp_endpoint}")
+            except Exception as e:
+                logger.error(f"CDP discovery failed: {e}")
+                return False
+
+        logger.info(f"Connecting to existing Chrome via CDP: {cdp_endpoint}")
+
+        # Validate CDP endpoint is reachable
+        try:
+            req = urllib.request.Request(f"{cdp_endpoint}/json/version")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status != 200:
+                    logger.error(f"CDP endpoint not reachable: {cdp_endpoint} (status={resp.status})")
+                    return False
+                version_info = json.loads(resp.read().decode("utf-8"))
+                logger.info(f"CDP version: {version_info.get('Browser', 'unknown')}")
+        except Exception as e:
+            logger.error(f"Failed to reach CDP endpoint {cdp_endpoint}: {e}")
+            return False
+
+        try:
+            self._playwright = await async_playwright().start()
+            browser = await self._playwright.chromium.connect_over_cdp(cdp_endpoint)
+
+            # Get existing context
+            contexts = browser.contexts
+            if contexts:
+                self._playwright_context = contexts[0]
+            else:
+                self._playwright_context = await browser.new_context()
+
+            # Get first page from existing context
+            if self._playwright_context:
+                pages = self._playwright_context.pages
+                if pages:
+                    self._playwright_page = pages[0]
+                else:
+                    self._playwright_page = await self._playwright_context.new_page()
+
+            if not self._playwright_page:
+                logger.error("Failed to get or create page from existing Chrome")
+                await self._playwright.stop()
+                self._playwright = None
+                return False
+
+            self._playwright_page.set_default_timeout(30000)
+            logger.info("Successfully connected to existing Chrome via CDP")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to connect to existing Chrome via CDP: {e}")
+            if self._playwright:
+                await self._playwright.stop()
+                self._playwright = None
+            return False
 
     async def goto(self, url: str, wait_until: str = "domcontentloaded", timeout: int = 30000) -> bool:
         """Navigate to URL."""
@@ -891,6 +994,9 @@ class LocalCompanion:
             chrome_args=payload.get("chrome_args", []),
             browser_startup=payload.get("browser_startup", self.local_config.browser_startup),
             auth_wait_seconds=payload.get("auth_wait_seconds", self.local_config.auth_wait_seconds),
+            cdp_endpoint=payload.get("cdp_endpoint"),
+            cdp_host=payload.get("cdp_host", "127.0.0.1"),
+            cdp_port=payload.get("cdp_port", 9222),
         )
         
         self._sessions[session_id] = config

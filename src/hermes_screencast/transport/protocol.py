@@ -36,7 +36,7 @@ class BrowserStartup(str, Enum):
     """Browser startup strategy for Windows-local E2E."""
     RAW_CDP = "raw-cdp"
     PLAYWRIGHT = "playwright"
-
+    EXISTING_CDP = "existing-cdp"
 
 class AuthStatus(str, Enum):
     """Authentication status values."""
@@ -186,9 +186,11 @@ class SessionConfig:
     headless: bool = True
     chrome_path: Optional[str] = None
     chrome_args: list[str] = field(default_factory=list)
-    browser_startup: str = "playwright"
+    browser_startup: BrowserStartup = BrowserStartup.PLAYWRIGHT
     auth_wait_seconds: int = 300
-
+    cdp_endpoint: Optional[str] = None
+    cdp_host: str = "127.0.0.1"
+    cdp_port: int = 9222
 
 @dataclass
 class RecordingConfig:

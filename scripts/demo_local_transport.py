@@ -173,10 +173,16 @@ Examples:
     windows_e2e_parser.add_argument("--debug", action="store_true", help="Enable debug output")
     windows_e2e_parser.add_argument("--dry-run", action="store_true", help="Show what would be done without starting Chrome/companion/FFmpeg")
     windows_e2e_parser.add_argument("--browser-startup", default="raw-cdp",
-                                    choices=["playwright", "raw-cdp"],
+                                    choices=["playwright", "raw-cdp", "existing-cdp"],
                                     help="Browser startup strategy (default: raw-cdp)")
     windows_e2e_parser.add_argument("--auth-wait-seconds", type=int, default=300,
                                     help="Maximum seconds to wait for authentication (default: 300)")
+    windows_e2e_parser.add_argument("--cdp-endpoint", default=None,
+                                    help="Full CDP endpoint URL for existing-cdp mode (e.g., http://127.0.0.1:9222)")
+    windows_e2e_parser.add_argument("--cdp-host", default="127.0.0.1",
+                                    help="CDP host for existing-cdp mode (default: 127.0.0.1)")
+    windows_e2e_parser.add_argument("--cdp-port", type=int, default=9222,
+                                    help="CDP port for existing-cdp mode (default: 9222)")
 
     return parser
 
@@ -532,9 +538,12 @@ async def demo_windows_e2e(args: argparse.Namespace) -> int:
     # Normalize parameters for backward compatibility with old Namespace objects
     browser_startup = getattr(args, "browser_startup", "raw-cdp")
     auth_wait_seconds = getattr(args, "auth_wait_seconds", 300)
+    cdp_endpoint = getattr(args, "cdp_endpoint", None)
+    cdp_host = getattr(args, "cdp_host", "127.0.0.1")
+    cdp_port = getattr(args, "cdp_port", 9222)
 
     # Validate normalized parameters
-    if browser_startup not in {"raw-cdp", "playwright"}:
+    if browser_startup not in {"raw-cdp", "playwright", "existing-cdp"}:
         print("Error: unsupported browser startup strategy")
         return 2
 
@@ -551,6 +560,11 @@ async def demo_windows_e2e(args: argparse.Namespace) -> int:
         print(f"  Inspect only: {args.inspect_only}")
         print(f"  Browser startup: {browser_startup}")
         print(f"  Auth wait seconds: {auth_wait_seconds}")
+        if browser_startup == "existing-cdp":
+            if cdp_endpoint:
+                print(f"  CDP endpoint: {cdp_endpoint}")
+            else:
+                print(f"  CDP endpoint: http://{cdp_host}:{cdp_port}")
         if args.record:
             print(f"  Record: {args.record_seconds}s -> {args.output_name}")
             print(f"  Success selector: {args.success_selector}")
@@ -656,6 +670,9 @@ async def demo_windows_e2e(args: argparse.Namespace) -> int:
             chrome_path=chrome_path,
             browser_startup=browser_startup,
             auth_wait_seconds=auth_wait_seconds,
+            cdp_endpoint=getattr(args, "cdp_endpoint", None),
+            cdp_host=getattr(args, "cdp_host", "127.0.0.1"),
+            cdp_port=getattr(args, "cdp_port", 9222),
         )
         print(f"   Session created: {session_id}")
 
@@ -667,54 +684,53 @@ async def demo_windows_e2e(args: argparse.Namespace) -> int:
         print("   URL opened - Chrome window should be visible")
 
         if args.inspect_only:
-            print("\n🔍 INSPECT-ONLY MODE: Selector Discovery")
-            print("   Please manually log in to HeyGen in the Chrome window.")
-            print("   Press Ctrl+C when done to see page state.")
+                    print("\n🔍 INSPECT-ONLY MODE: Selector Discovery")
+                    print("   Please manually log in to HeyGen in the Chrome window.")
+                    print("   Press Ctrl+C when done to see page state.")
             
-            # Periodically get safe page state
-            print("\n   Waiting for manual login... (polling page state)")
-            try:
-                while True:
-                    await asyncio.sleep(5)
-                    state = await transport.get_safe_page_state(session_id)
-                    print(f"   URL: {state.current_url}")
-                    print(f"   Hostname: {state.hostname}")
-                    print(f"   Title: {state.title}")
-                    print(f"   Auth status: {state.auth_status}")
-                    print(f"   Session status: {state.session_status}")
-                    if state.login_markers:
-                        print(f"   Login markers: {state.login_markers}")
-                    if state.provider_block_markers:
-                        print(f"   Provider blocks: {state.provider_block_markers}")
-                    if state.success_selector_visible:
-                        print(f"   ✓ Success selector VISIBLE: {args.success_selector}")
-                    else:
+                    # Periodically get safe page state
+                    print("\n   Waiting for manual login... (polling page state)")
+                    try:
+                        while True:
+                            await asyncio.sleep(5)
+                            state = await transport.get_safe_page_state(session_id)
+                            print(f"   URL: {state.current_url}")
+                            print(f"   Hostname: {state.hostname}")
+                            print(f"   Title: {state.title}")
+                            print(f"   Auth status: {state.auth_status}")
+                            print(f"   Session status: {state.session_status}")
+                            if state.login_markers:
+                                print(f"   Login markers: {state.login_markers}")
+                            if state.provider_block_markers:
+                                print(f"   Provider blocks: {state.provider_block_markers}")
+                            if state.success_selector_visible:
+                                print(f"   ✓ Success selector VISIBLE: {args.success_selector}")
+                            else:
+                                if args.success_selector:
+                                    print(f"   ✗ Success selector NOT VISIBLE: {args.success_selector}")
+                    except KeyboardInterrupt:
+                        print("\n   Interrupted - final page state:")
+                        state = await transport.get_safe_page_state(session_id)
+                        print(f"   URL: {state.current_url}")
+                        print(f"   Hostname: {state.hostname}")
+                        print(f"   Title: {state.title}")
+                        print(f"   Auth status: {state.auth_status}")
+                        print(f"   Session status: {state.session_status}")
+                        if state.login_markers:
+                            print(f"   Login markers: {state.login_markers}")
+                        if state.provider_block_markers:
+                            print(f"   Provider blocks: {state.provider_block_markers}")
                         if args.success_selector:
-                            print(f"   ✗ Success selector NOT VISIBLE: {args.success_selector}")
-            except KeyboardInterrupt:
-                print("\n   Interrupted - final page state:")
-                state = await transport.get_safe_page_state(session_id)
-                print(f"   URL: {state.current_url}")
-                print(f"   Hostname: {state.hostname}")
-                print(f"   Title: {state.title}")
-                print(f"   Auth status: {state.auth_status}")
-                print(f"   Session status: {state.session_status}")
-                if state.login_markers:
-                    print(f"   Login markers: {state.login_markers}")
-                if state.provider_block_markers:
-                    print(f"   Provider blocks: {state.provider_block_markers}")
-                if args.success_selector:
-                    if state.success_selector_visible:
-                        print(f"   ✓ Success selector VISIBLE: {args.success_selector}")
-                        print("   Result: authenticated_selector_confirmed")
-                    else:
-                        print(f"   ✗ Success selector NOT VISIBLE: {args.success_selector}")
-                        print("   Result: dashboard_selector_required")
-                return 0
+                            if state.success_selector_visible:
+                                print(f"   ✓ Success selector VISIBLE: {args.success_selector}")
+                                print("   Result: authenticated_selector_confirmed")
+                            else:
+                                print(f"   ✗ Success selector NOT VISIBLE: {args.success_selector}")
+                                print("   Result: dashboard_selector_required")
+                        return 0
 
         # RECORDING MODE
         if args.success_selector:
-            print(f"\n4. Verifying success selector: {args.success_selector}")
             probe_state = await transport.get_safe_page_state(session_id)
             authenticated, reason = await validate_selector(probe_state, args.success_selector, args.target_url)
             if not authenticated:

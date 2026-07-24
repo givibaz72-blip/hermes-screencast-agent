@@ -71,49 +71,56 @@
     .\scripts\run_heygen_windows_e2e.ps1 -InspectOnly -DryRun
 
 .EXAMPLE
-    # Debug mode
-    .\scripts\run_heygen_windows_e2e.ps1 -InspectOnly -HermesDebug
-#>
+    .PARAMETER BrowserStartup
+        Browser startup strategy: playwright, raw-cdp, or existing-cdp (default: playwright).
+        Use existing-cdp to connect to an already-running Chrome with --remote-debugging-port.
+    #>
 
-[CmdletBinding(DefaultParameterSetName="InspectOnly")]
-param(
-    [Parameter(ParameterSetName="InspectOnly", Mandatory=$true)]
-    [Parameter(ParameterSetName="Record", Mandatory=$true)]
-    [switch]$InspectOnly,
+    [CmdletBinding(DefaultParameterSetName="InspectOnly")]
+    param(
+        [Parameter(ParameterSetName="InspectOnly", Mandatory=$true)]
+        [Parameter(ParameterSetName="Record", Mandatory=$true)]
+        [switch]$InspectOnly,
 
-    [Parameter(ParameterSetName="Record", Mandatory=$true)]
-    [switch]$Record,
+        [Parameter(ParameterSetName="Record", Mandatory=$true)]
+        [switch]$Record,
 
-    [Parameter(ParameterSetName="Record", Mandatory=$true)]
-    [string]$SuccessSelector,
+        [Parameter(ParameterSetName="Record", Mandatory=$true)]
+        [string]$SuccessSelector,
 
-    [Parameter(ParameterSetName="Record")]
-    [int]$RecordSeconds = 10,
+        [Parameter(ParameterSetName="Record")]
+        [int]$RecordSeconds = 10,
 
-    [Parameter(ParameterSetName="Record")]
-    [string]$OutputName = "heygen-review-demo.mp4",
+        [Parameter(ParameterSetName="Record")]
+        [string]$OutputName = "heygen-review-demo.mp4",
 
-    [string]$ProfileDir = "$env:LOCALAPPDATA\Hermes\Profiles\heygen-review",
+        [string]$ProfileDir = "$env:LOCALAPPDATA\Hermes\Profiles\heygen-review",
 
-    [string]$RecordingDir = "$env:USERPROFILE\Videos\Hermes",
+        [string]$RecordingDir = "$env:USERPROFILE\Videos\Hermes",
 
-    [string]$TargetUrl = "https://app.heygen.com/",
+        [string]$TargetUrl = "https://app.heygen.com/",
 
-    [string]$Profile = "heygen-review",
+        [string]$Profile = "heygen-review",
 
-    [string]$ChromePath,
+        [string]$ChromePath,
 
-    [int]$ConnectTimeout = 30,
+        [int]$ConnectTimeout = 30,
 
-    [switch]$HermesDebug,
+        [switch]$HermesDebug,
 
-    [switch]$DryRun,
+        [switch]$DryRun,
 
-    [ValidateSet("playwright","raw-cdp")]
-    [string]$BrowserStartup = "playwright",
+        [ValidateSet("playwright","raw-cdp","existing-cdp")]
+        [string]$BrowserStartup = "playwright",
 
-    [int]$AuthWaitSeconds = 300
-)
+        [int]$AuthWaitSeconds = 300,
+
+        [string]$CdpHost = "127.0.0.1",
+
+        [int]$CdpPort = 9222,
+
+        [string]$CdpEndpoint
+    )
 
 # Set strict mode
 Set-StrictMode -Version Latest
@@ -163,6 +170,37 @@ if ($ChromePath) {
 }
 
 Write-Host "Using Chrome: $ChromePath"
+
+# Auto-discover CDP endpoint for existing-cdp mode
+if ($BrowserStartup -eq "existing-cdp") {
+    Write-Host "Discovering existing Chrome CDP endpoint..." -ForegroundColor Cyan
+
+    # If CDP endpoint not explicitly provided, try to discover it
+    if (-not $CdpEndpoint) {
+        $helperScript = Join-Path $scriptDir "get-existing-chrome.ps1"
+        if (Test-Path $helperScript) {
+            Write-Host "  Running get-existing-chrome.ps1..." -ForegroundColor Gray
+            $cdpResult = & $helperScript -Host $CdpHost -Port "$CdpPort" -TimeoutSec 5 2>$null
+            if ($LASTEXITCODE -eq 0 -and $cdpResult) {
+                $cdpInfo = $cdpResult | ConvertFrom-Json
+                if ($cdpInfo -and $cdpInfo.HttpEndpoint) {
+                    $CdpEndpoint = $cdpInfo.HttpEndpoint
+                    Write-Host "  Found CDP endpoint: $CdpEndpoint" -ForegroundColor Green
+                    Write-Host "  Browser: $($cdpInfo.BrowserVersion)" -ForegroundColor Gray
+                    Write-Host "  WebSocket: $($cdpInfo.WebSocketUrl)" -ForegroundColor Gray
+                }
+            }
+        }
+
+        # Fallback to default
+        if (-not $CdpEndpoint) {
+            $CdpEndpoint = "http://$CdpHost:$CdpPort"
+            Write-Host "  Using default CDP endpoint: $CdpEndpoint" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  Using provided CDP endpoint: $CdpEndpoint" -ForegroundColor Green
+    }
+}
 
 # Check FFmpeg and ffprobe
 foreach ($tool in @("ffmpeg", "ffprobe")) {
@@ -243,6 +281,13 @@ if ($BrowserStartup -ne "playwright") {
     $PythonArgs += @(
         "--browser-startup"
         $BrowserStartup
+    )
+}
+
+if ($BrowserStartup -eq "existing-cdp") {
+    $PythonArgs += @(
+        "--cdp-endpoint"
+        $CdpEndpoint
     )
 }
 

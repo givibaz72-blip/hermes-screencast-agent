@@ -162,6 +162,44 @@ class TestPowerShellWindowsE2EScript:
         assert 'Start-Process' not in content, \
             "Script must not use Start-Process for Python invocation"
 
+    def test_existing_cdp_passes_cdp_endpoint_to_python(self):
+        """Test that existing-cdp mode passes --cdp-endpoint to Python."""
+        content = self.script_content
+        # Check that when $BrowserStartup -eq "existing-cdp", the script adds --cdp-endpoint
+        assert 'if ($BrowserStartup -eq "existing-cdp")' in content, \
+            "Script should have existing-cdp conditional"
+        assert '--cdp-endpoint' in content, \
+            "Script should pass --cdp-endpoint argument"
+        assert '$CdpEndpoint' in content, \
+            "Script should reference $CdpEndpoint variable"
+
+    def test_existing_cdp_auto_discovers_via_get_existing_chrome(self):
+        """Test that existing-cdp mode tries to auto-discover via get-existing-chrome.ps1."""
+        content = self.script_content
+        assert 'get-existing-chrome.ps1' in content, \
+            "Script should reference get-existing-chrome.ps1 for auto-discovery"
+        assert 'cdpResult' in content or 'CdpEndpoint' in content, \
+            "Script should reference CDP result variable"
+
+    def test_script_has_cdp_parameters(self):
+        """Test that the script has the new CDP parameters."""
+        content = self.script_content
+        assert '[string]$CdpHost' in content, \
+            "Script should have $CdpHost parameter"
+        assert '[int]$CdpPort' in content, \
+            "Script should have $CdpPort parameter"
+        assert '[string]$CdpEndpoint' in content, \
+            "Script should have $CdpEndpoint parameter"
+
+    def test_script_has_existing_cdp_in_validate_set(self):
+        """Test that BrowserStartup ValidateSet includes existing-cdp."""
+        content = self.script_content
+        # Find the ValidateSet after BrowserStartup parameter
+        param_start = content.find('[ValidateSet(')
+        param_section = content[param_start:param_start + 200]
+        assert 'existing-cdp' in param_section, \
+            "BrowserStartup ValidateSet should include existing-cdp"
+
 
 class TestPowerShellScriptSyntax:
     """Test that the PowerShell script has valid syntax (static analysis)."""
@@ -250,11 +288,46 @@ class TestPythonWindowsE2EMode:
             chrome_path=None,
             browser_startup="raw-cdp",
             auth_wait_seconds=300,
+            cdp_endpoint=None,
+            cdp_host="127.0.0.1",
+            cdp_port=9222,
         )
 
         import asyncio
         result = asyncio.run(demo_windows_e2e(args))
         assert result == 0, "Dry run should return exit code 0"
+
+    def test_dry_run_existing_cdp_returns_zero(self):
+        """Test that dry-run mode with existing-cdp returns exit code 0."""
+        import sys
+        sys.path.insert(0, str(self.demo_script_path.parent.parent))
+
+        from scripts.demo_local_transport import demo_windows_e2e
+
+        args = argparse.Namespace(
+            dry_run=True,
+            profile_dir=r"C:\test\profile",
+            recording_dir=r"C:\test\recordings",
+            target_url="https://app.heygen.com/",
+            profile="heygen-review",
+            inspect_only=True,
+            record=False,
+            success_selector=None,
+            record_seconds=10,
+            output_name="test.mp4",
+            connect_timeout=30.0,
+            debug=False,
+            chrome_path=None,
+            browser_startup="existing-cdp",
+            auth_wait_seconds=300,
+            cdp_endpoint="http://127.0.0.1:9222",
+            cdp_host="127.0.0.1",
+            cdp_port=9222,
+        )
+
+        import asyncio
+        result = asyncio.run(demo_windows_e2e(args))
+        assert result == 0, "Dry run with existing-cdp should return exit code 0"
 
     def test_record_without_selector_fails(self):
         """Test that --record requires --success-selector."""

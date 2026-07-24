@@ -402,6 +402,9 @@ class LocalDesktopTransport(BaseTransport):
         chrome_args: Optional[list[str]] = None,
         browser_startup: str = "playwright",
         auth_wait_seconds: int = 300,
+        cdp_endpoint: Optional[str] = None,
+        cdp_host: str = "127.0.0.1",
+        cdp_port: int = 9222,
     ) -> tuple[str, PairingToken]:
         """Start a new session with the local companion."""
         import secrets
@@ -424,6 +427,9 @@ class LocalDesktopTransport(BaseTransport):
             "chrome_args": chrome_args or [],
             "browser_startup": browser_startup,
             "auth_wait_seconds": auth_wait_seconds,
+            "cdp_endpoint": cdp_endpoint,
+            "cdp_host": cdp_host,
+            "cdp_port": cdp_port,
         }
 
         request = CompanionRequest(
@@ -464,6 +470,9 @@ class LocalDesktopTransport(BaseTransport):
             chrome_args=chrome_args or [],
             browser_startup=browser_startup,
             auth_wait_seconds=auth_wait_seconds,
+            cdp_endpoint=cdp_endpoint,
+            cdp_host=cdp_host,
+            cdp_port=cdp_port,
         )
 
         self._connected = True

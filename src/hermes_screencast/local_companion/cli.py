@@ -1,9 +1,9 @@
 """Canonical CLI entry point for local companion.
 
 Usage:
-    python -m hermes_screencast.local_companion.cli \\
-        --host 127.0.0.1 \\
-        --port 0 \\
+    python -m hermes_screencast.local_companion.cli \
+        --host 127.0.0.1 \
+        --port 0 \
         --chrome-path "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
 
 Startup contract:
@@ -51,10 +51,16 @@ Startup contract:
     parser.add_argument("--headless", action="store_true",
                         help="Run browser in headless mode")
     parser.add_argument("--browser-startup", default="playwright",
-                        choices=["playwright", "raw-cdp"],
+                        choices=["playwright", "raw-cdp", "existing-cdp"],
                         help="Browser startup strategy (default: playwright)")
     parser.add_argument("--auth-wait-seconds", type=int, default=300,
                         help="Maximum seconds to wait for authentication (default: 300)")
+    parser.add_argument("--cdp-endpoint", default=None,
+                        help="Full CDP endpoint URL (e.g., http://127.0.0.1:9222)")
+    parser.add_argument("--cdp-host", default="127.0.0.1",
+                        help="CDP host for existing-cdp mode (default: 127.0.0.1)")
+    parser.add_argument("--cdp-port", type=int, default=9222,
+                        help="CDP port for existing-cdp mode (default: 9222)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Validate arguments and exit without starting server")
     return parser
@@ -73,6 +79,9 @@ async def run(args: argparse.Namespace) -> int:
         print(f"  chrome_path={args.chrome_path}", flush=True)
         print(f"  headless={args.headless}", flush=True)
         print(f"  browser_startup={args.browser_startup}", flush=True)
+        print(f"  cdp_endpoint={args.cdp_endpoint}", flush=True)
+        print(f"  cdp_host={args.cdp_host}", flush=True)
+        print(f"  cdp_port={args.cdp_port}", flush=True)
         print(f"  auth_wait_seconds={args.auth_wait_seconds}", flush=True)
         return 0
 
@@ -84,6 +93,9 @@ async def run(args: argparse.Namespace) -> int:
             chrome_path=args.chrome_path,
             headless=args.headless,
             browser_startup=args.browser_startup,
+            cdp_endpoint=args.cdp_endpoint,
+            cdp_host=args.cdp_host,
+            cdp_port=args.cdp_port,
             auth_wait_seconds=args.auth_wait_seconds,
         ),
     )

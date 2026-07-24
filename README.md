@@ -40,6 +40,7 @@ DemoScript
   -> LocalBrowserProcess
        -> RawChromeCdpProcess  [browser_startup="raw-cdp"]
        -> Playwright            [browser_startup="playwright" (default)]
+       -> connect_over_cdp      [browser_startup="existing-cdp"]
 ```
 
 Normal-language generation uses a separate provider-neutral path:
@@ -786,6 +787,61 @@ python scripts/demo_raw_chrome_cdp.py
 # Windows smoke-test script (PowerShell)
 powershell -File scripts/test_raw_chrome_cdp_windows.ps1 -DryRun
 ```
+
+### Existing Chrome CDP Mode (Preserve Login State)
+
+Connect to an **already-running** Chrome instance with `--remote-debugging-port`. Hermes does **not** launch Chrome — it reuses the existing browser, preserving login state, OAuth sessions, and CAPTCHA flows.
+
+```bash
+# Start Chrome manually FIRST with remote debugging
+google-chrome --remote-debugging-port=9222 --user-data-dir="/tmp/chrome-debug"
+
+# Then connect Hermes (auto-discovers CDP endpoint on 127.0.0.1:9222)
+python -m hermes_screencast.local_companion.cli \
+  --host 127.0.0.1 \
+  --port 0 \
+  --browser-startup existing-cdp
+
+# Or with explicit endpoint
+python -m hermes_screencast.local_companion.cli \
+  --browser-startup existing-cdp \
+  --cdp-endpoint http://127.0.0.1:9222
+```
+
+**Windows (PowerShell):**
+```powershell
+# Start Chrome manually
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" `
+  --remote-debugging-port=9222 `
+  --user-data-dir="C:\ChromeDebugProfile"
+
+# Auto-discover and connect
+.\scripts\run_heygen_windows_e2e.ps1 -InspectOnly -BrowserStartup existing-cdp
+
+# Or specify endpoint explicitly
+.\scripts\run_heygen_windows_e2e.ps1 -InspectOnly -BrowserStartup existing-cdp -CdpEndpoint "http://127.0.0.1:9222"
+```
+
+**How it works:**
+1. If `--cdp-endpoint` is not provided, `_discover_cdp_endpoint()` probes `http://<host>:<port>/json/version` to find a running Chrome.
+2. Companion validates the endpoint is reachable, then connects Playwright's `connect_over_cdp()`.
+3. Playwright reuses the **existing** browser context and first page — no new Chrome is spawned.
+4. On close, the companion **does not** kill the browser (Hermes didn't start it).
+
+**START_SESSION protocol contract:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `browser_startup` | string | `"playwright"`, `"raw-cdp"`, or `"existing-cdp"` |
+| `cdp_endpoint` | string? | Full CDP endpoint URL (e.g., `http://127.0.0.1:9222`) |
+| `cdp_host` | string | CDP host for auto-discovery (default `127.0.0.1`) |
+| `cdp_port` | int | CDP port for auto-discovery (default `9222`) |
+| `auth_wait_seconds` | int | Maximum seconds to wait for login (default 300) |
+
+**When to use existing CDP:**
+- You want to **preserve** your login session between runs
+- OAuth / CAPTCHA / 2FA flows would reset on every new Chrome launch
+- You already have Chrome running with `--remote-debugging-port` in your workflow
 
 ### Inspect-Only Mode (Selector Discovery)
 
