@@ -5,6 +5,7 @@ description = "AI-assisted browser screencast agent for Hermes"
 requires-python = ">=3.11"
 dependencies = [
     "playwright>=1.40",
+    "websockets>=16,<17",
 ]
 
 [project.optional-dependencies]

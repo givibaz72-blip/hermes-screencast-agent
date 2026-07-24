@@ -61,6 +61,15 @@ class DemoScript:
         self._validate_mapping("preferences", self.preferences)
         self._validate_mapping("metadata", self.metadata)
 
+        # Validate auth config if present
+        if "requires_auth" in self.target and not isinstance(self.target.get("requires_auth"), bool):
+            raise ValueError("target.requires_auth must be a boolean")
+
+        if "requires_auth" in self.target and self.target.get("requires_auth"):
+            # If auth required, success_url_prefix or success_selector should be provided
+            if not self.target.get("success_url_prefix") and not self.target.get("success_selector"):
+                raise ValueError("target.requires_auth=true requires success_url_prefix or success_selector")
+
         if not self.steps:
             raise ValueError("DemoScript must contain at least one step")
 
@@ -101,13 +110,9 @@ class DemoScript:
 
         if step.action == DemoActionType.WAIT_FOR_NOT_ELEMENT_VISIBLE:
             if not step.selector:
-                raise ValueError(
-                    f"Step {index}: wait_for_not_element_visible requires selector"
-                )
+                raise ValueError(f"Step {index}: wait_for_not_element_visible requires selector")
             if step.seconds is not None and step.seconds < 0:
-                raise ValueError(
-                    f"Step {index}: wait_for_not_element_visible requires non-negative seconds"
-                )
+                raise ValueError(f"Step {index}: wait_for_not_element_visible requires non-negative seconds")
 
         if step.action == DemoActionType.WAIT_FOR_URL_CONTAINS:
             if not step.url:

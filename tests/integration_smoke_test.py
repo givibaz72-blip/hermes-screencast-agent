@@ -406,10 +406,10 @@ def run_browser_login(display: str, profile_name: str, login_url: str, dashboard
         runtime.__exit__(None, None, None)
 
 
-def test_persistence_real() -> bool:
-    """Test 3: Session persistence across browser restarts (REAL TEST)
+def _run_persistence_test() -> bool:
+    """Test 3 helper: Session persistence across browser restarts (REAL TEST)
 
-    This test:
+    This helper:
     1. First BrowserRuntime: real login via form POST, gets session cookie, redirects to /dashboard
     2. First BrowserRuntime fully closes (profile with cookies persists)
     2. Second BrowserRuntime: same profile, opens /login -> server redirects to /dashboard via cookie
@@ -549,7 +549,7 @@ def main():
         print("  Cleanup: OK")
 
     # Test 3: Persistence
-    if not test_persistence_real():
+    if not _run_persistence_test():
         print("\nPersistence test failed")
         return 1
 

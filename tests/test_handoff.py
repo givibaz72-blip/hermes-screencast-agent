@@ -217,8 +217,8 @@ class TestAssistedLoginHandoff:
         handoff = create_handoff("http://example.com/login")
         # Build a test URL manually
         url = handoff._build_handoff_url(8080)
-        assert "token=" in url
-        assert handoff.token in url
+        assert "path=" in url  # noVNC uses path= for websockify endpoint
+        assert "websockify%3Ftoken%3D" in url  # token embedded in path (URL encoded)
         assert "autoconnect=1" in url
         assert "resize=scale" in url
 
@@ -226,7 +226,7 @@ class TestAssistedLoginHandoff:
         handoff = create_handoff("http://example.com/login")
         handoff.cancel()
         assert handoff._cancelled.is_set()
-        assert handoff._authenticated.is_set()
+        assert not handoff._authenticated.is_set()  # Cancellation should NOT set authenticated
 
     def test_stop_cleans_up_processes(self):
         handoff = create_handoff("http://example.com/login")
@@ -382,7 +382,8 @@ class TestBrowserHandoffIntegration:
         mock_locator.count.return_value = 1
         mock_locator.first.is_visible.return_value = True
         mock_page.locator.return_value = mock_locator
-        mock_page.url = "https://example.com/dashboard"
+        mock_page.url.return_value = "https://example.com/dashboard"
+        mock_page.title.return_value = "Dashboard"
 
         mock_browser = MagicMock()
         mock_browser.page = mock_page
@@ -408,7 +409,8 @@ class TestBrowserHandoffIntegration:
         )
 
         mock_page = MagicMock()
-        mock_page.url = "https://example.com/dashboard?session=abc"
+        mock_page.url.return_value = "https://example.com/dashboard?session=abc"
+        mock_page.title.return_value = "Dashboard"
 
         mock_browser = MagicMock()
         mock_browser.page = mock_page

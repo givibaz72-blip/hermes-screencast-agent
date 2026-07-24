@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
+from hermes_screencast.auth import create_handoff, AssistedLoginHandoff, HandoffResult
 from hermes_screencast.browser import BrowserRuntime, BrowserRuntimeConfig
 from hermes_screencast.demo.browser_executor import BrowserDemoExecutor
 from hermes_screencast.demo.events import (
@@ -85,6 +86,34 @@ def build_recorded_steps_script(script: DemoScript) -> DemoScript:
     )
 
 
+def auth_preflight_check(url: str, profile: str = "demo-record", timeout: float = 30.0,
+                         success_url_prefix: str = "", success_selector: str = "") -> HandoffResult:
+    """Check authentication status before recording.
+
+    This performs a lightweight check to verify the browser profile is authenticated
+    for the given URL without starting the full handoff flow.
+
+    Returns:
+        HandoffResult with status indicating authentication state
+    """
+    handoff = create_handoff(
+        target_url=url,
+        profile=profile,
+        timeout=timeout,
+        success_url_prefix=success_url_prefix,
+        success_selector=success_selector,
+        no_auto_detect=False,
+    )
+
+    try:
+        result = handoff.start()
+        # Wait for initial page load and check login state
+        result = handoff.wait_for_completion(timeout=timeout)
+        return result
+    finally:
+        handoff.stop()
+
+
 def record_demo_script(
     script: DemoScript,
     output_file: str | Path,
@@ -104,6 +133,7 @@ def record_demo_script(
     events_output_file: str | Path | None = None,
     event_journal_factory=RecordingEventJournal,
     event_runner_factory=EventLoggingDemoRunner,
+    auth_preflight_checker: Callable | None = None,
 ) -> Path:
     """Execute a modern DemoScript and record its visible actions to MP4."""
     script.validate()
@@ -111,6 +141,27 @@ def record_demo_script(
 
     first_step = script.steps[0]
     assert first_step.url is not None
+
+    # Perform auth preflight check only if requires_auth is true
+    requires_auth = script.target.get("requires_auth", False)
+    if requires_auth:
+        if auth_preflight_checker is None:
+            auth_preflight_checker = auth_preflight_check
+        success_url_prefix = script.target.get("success_url_prefix", "")
+        success_selector = script.target.get("success_selector", "")
+        auth_result = auth_preflight_checker(
+            first_step.url,
+            profile=profile,
+            success_url_prefix=success_url_prefix,
+            success_selector=success_selector,
+        )
+        if auth_result.status != "authenticated":
+            # Authentication not complete or blocked - do not record
+            raise RuntimeError(
+                f"Authentication preflight failed: {auth_result.status} - "
+                f"target={auth_result.target_url}, final={auth_result.final_url}. "
+                f"Cannot start recording without authenticated session."
+            )
 
     output_path = Path(output_file).expanduser().resolve()
     events_path = (

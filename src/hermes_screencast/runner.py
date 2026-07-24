@@ -195,12 +195,37 @@ def run_demo_json_command(args: argparse.Namespace) -> None:
 def run_demo_record_command(args: argparse.Namespace) -> Path:
     script = load_demo_script(Path(args.demo_json))
 
-    output_path = record_demo_script(
-        script,
-        Path(args.output),
-        profile=args.profile,
-        events_output_file=args.events_output,
-    )
+    try:
+        output_path = record_demo_script(
+            script,
+            Path(args.output),
+            profile=args.profile,
+            events_output_file=args.events_output,
+        )
+    except RuntimeError as e:
+        # Check if it's an auth preflight failure
+        if "Authentication preflight failed" in str(e):
+            # Extract the status from the error message
+            import re
+            match = re.search(r"Authentication preflight failed: (\w+) -", str(e))
+            status = match.group(1) if match else "failed"
+            # Print safe JSON result
+            from hermes_screencast.auth.handoff import HandoffResult
+            target_url = script.steps[0].url if script.steps else ""
+            if target_url is None:
+                target_url = ""
+            result = HandoffResult(
+                status=status,
+                profile=args.profile,
+                profile_path="",  # Not available here
+                target_url=target_url,
+                final_url="",
+                handoff_closed=True,
+            )
+            print(result.to_json(), flush=True)
+            import sys
+            sys.exit(1)
+        raise
 
     print(
         f"✅ DemoScript recorded: {output_path}",
